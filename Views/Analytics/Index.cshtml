@@ -1,0 +1,226 @@
+﻿@model LeadScoutCRM.Models.ViewModels.AnalyticsViewModel
+@{
+    ViewData["Title"] = "Analytics";
+
+    // Serializa dados para os gráficos
+    var statusLabels = System.Text.Json.JsonSerializer.Serialize(Model.LeadsByStatus.Keys);
+    var statusData = System.Text.Json.JsonSerializer.Serialize(Model.LeadsByStatus.Values);
+    var nicheLabels = System.Text.Json.JsonSerializer.Serialize(Model.LeadsByNiche.Keys);
+    var nicheData = System.Text.Json.JsonSerializer.Serialize(Model.LeadsByNiche.Values);
+    var dayLabels = System.Text.Json.JsonSerializer.Serialize(Model.LeadsPerDay.Keys);
+    var dayData = System.Text.Json.JsonSerializer.Serialize(Model.LeadsPerDay.Values);
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Analytics</h4>
+        <span class="text-muted" style="font-size:.875rem">Performance do teu pipeline</span>
+    </div>
+</div>
+
+<!-- KPI Cards -->
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#ede9fe">
+                    <i class="bi bi-people-fill" style="color:#6366f1"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Total de Leads</div>
+                    <div class="fw-bold fs-4">@Model.TotalLeads</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#dcfce7">
+                    <i class="bi bi-trophy-fill" style="color:#15803d"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Taxa de Conversão</div>
+                    <div class="fw-bold fs-4">@Model.ConversionRate%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#fef9c3">
+                    <i class="bi bi-lightning-fill" style="color:#a16207"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Leads esta semana</div>
+                    <div class="fw-bold fs-4">@Model.LeadsThisWeek</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#dbeafe">
+                    <i class="bi bi-chat-dots-fill" style="color:#1d4ed8"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Taxa de Contacto</div>
+                    <div class="fw-bold fs-4">@Model.ContactRate%</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+<!-- Gráficos -->
+<div class="row g-4 mb-4">
+    <!-- Funil de status -->
+    <div class="col-lg-5">
+        <div class="card table-card p-4 h-100">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-funnel me-1"></i>Pipeline por Status
+            </h6>
+            <canvas id="statusChart" height="220"></canvas>
+        </div>
+    </div>
+    <!-- Timeline -->
+    <div class="col-lg-7">
+        <div class="card table-card p-4 h-100">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-graph-up me-1"></i>Leads nos últimos 30 dias
+            </h6>
+            <canvas id="timelineChart" height="220"></canvas>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4">
+    <!-- Por nicho -->
+    <div class="col-lg-7">
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-bar-chart me-1"></i>Leads por Nicho
+            </h6>
+            <canvas id="nicheChart" height="180"></canvas>
+        </div>
+    </div>
+    <!-- Insights -->
+    <div class="col-lg-5">
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-lightbulb me-1"></i>Insights
+            </h6>
+            <div class="d-flex flex-column gap-3">
+                <div class="d-flex align-items-start gap-3 p-3 rounded" style="background:#f0fdf4">
+                    <i class="bi bi-arrow-up-circle-fill text-success mt-1"></i>
+                    <div>
+                        <div class="fw-medium small">Nicho mais activo</div>
+                        <div class="text-muted small">@Model.TopNiche tem mais leads no CRM</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3 p-3 rounded" style="background:#eff6ff">
+                    <i class="bi bi-trophy-fill text-primary mt-1"></i>
+                    <div>
+                        <div class="fw-medium small">Melhor conversão</div>
+                        <div class="text-muted small">@Model.BestConversionNiche tem a maior taxa de fecho</div>
+                    </div>
+                </div>
+                <div class="d-flex align-items-start gap-3 p-3 rounded" style="background:#fefce8">
+                    <i class="bi bi-exclamation-triangle-fill text-warning mt-1"></i>
+                    <div>
+                        <div class="fw-medium small">Oportunidade</div>
+                        <div class="text-muted small">
+                            @{
+                                var semContacto = Model.TotalLeads > 0
+                                ? (int)Math.Round(100 - Model.ContactRate)
+                                : 0;
+                            }
+                            @semContacto% das leads ainda não foram contactadas
+                        </div>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        Chart.defaults.font.family = "'Segoe UI', sans-serif";
+        Chart.defaults.color = '#64748b';
+
+        // Funil de status (Doughnut)
+        new Chart(document.getElementById('statusChart'), {
+            type: 'doughnut',
+            data: {
+                labels: @Html.Raw(statusLabels),
+                datasets: [{
+                    data: @Html.Raw(statusData),
+                    backgroundColor: ['#dbeafe','#fef9c3','#ffedd5','#dcfce7','#fee2e2'],
+                    borderColor:     ['#1d4ed8','#a16207','#c2410c','#15803d','#b91c1c'],
+                    borderWidth: 2
+                }]
+            },
+            options: {
+                responsive: true,
+                plugins: {
+                    legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15 } }
+                }
+            }
+        });
+
+        // Timeline (Line chart)
+        new Chart(document.getElementById('timelineChart'), {
+            type: 'line',
+            data: {
+                labels: @Html.Raw(dayLabels),
+                datasets: [{
+                    label: 'Leads adicionadas',
+                    data: @Html.Raw(dayData),
+                    borderColor: '#6366f1',
+                    backgroundColor: 'rgba(99,102,241,.08)',
+                    borderWidth: 2,
+                    fill: true,
+                    tension: 0.4,
+                    pointRadius: 3,
+                    pointBackgroundColor: '#6366f1'
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false },
+                         ticks: { maxTicksLimit: 10, maxRotation: 0 } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+
+        // Nichos (Bar chart horizontal)
+        new Chart(document.getElementById('nicheChart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(nicheLabels),
+                datasets: [{
+                    label: 'Leads',
+                    data: @Html.Raw(nicheData),
+                    backgroundColor: 'rgba(99,102,241,.75)',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                indexAxis: 'y',
+                responsive: true,
+                scales: {
+                    x: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                    y: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+}

@@ -1,0 +1,264 @@
+﻿@model LeadScoutCRM.Models.Entities.Lead
+@{
+    ViewData["Title"] = Model.BusinessName;
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/Leads" class="text-muted text-decoration-none small">
+            <i class="bi bi-arrow-left me-1"></i>Voltar às Leads
+        </a>
+        <h4 class="fw-bold mb-0 mt-1">@Model.BusinessName</h4>
+    </div>
+    @Html.Partial("_StatusBadge", Model.Status)
+</div>
+
+<div class="row g-4">
+    <!-- ── Info + Mudar Status ── -->
+    <div class="col-lg-5">
+        <div class="card table-card p-4 mb-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-info-circle me-1"></i>Informação
+            </h6>
+            <dl class="row mb-0">
+                <dt class="col-5 text-muted small">Telefone</dt>
+                <dd class="col-7">
+                    @(string.IsNullOrEmpty(Model.PhoneNumber) ? "—" : Model.PhoneNumber)
+                </dd>
+                <dt class="col-5 text-muted small">Website</dt>
+                <dd class="col-7">
+                    @if (!string.IsNullOrEmpty(Model.Website))
+                    {
+                        <a href="@Model.Website" target="_blank">@Model.Website</a>
+                    }
+                    else
+                    {
+
+                        <span>—</span>
+                    }
+                </dd>
+                <dt class="col-5 text-muted small">Morada</dt>
+                <dd class="col-7 small">@(Model.Address ?? "—")</dd>
+                <dt class="col-5 text-muted small">Nicho</dt>
+                <dd class="col-7">
+                    <span class="badge bg-light text-dark">@Model.Niche</span>
+                </dd>
+                <dt class="col-5 text-muted small">Adicionada em</dt>
+                <dd class="col-7 small">@Model.CreatedAt.ToString("dd/MM/yyyy HH:mm")</dd>
+            </dl>
+        </div>
+
+        <!-- Mudar Status -->
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-arrow-left-right me-1"></i>Mudar Status
+            </h6>
+            <div class="d-grid gap-2">
+                @foreach (var status in Enum.GetValues<LeadScoutCRM.Models.Entities.LeadStatus>())
+                {
+                    <button class="btn btn-outline-secondary text-start status-btn
+                                           @(Model.Status == status ? "active fw-bold" : "")"
+                            onclick="updateStatus(@Model.Id, '@status')">
+                        @Html.Partial("_StatusBadge", status)
+                    </button>
+                }
+            </div>
+        </div>
+    </div>
+
+    <!-- ── Notas ── -->
+    <div class="col-lg-7">
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-journal-text me-1"></i>Notas
+            </h6>
+
+            <div class="card table-card p-4 mt-4">
+                <h6 class="fw-semibold mb-3">
+                    <i class="bi bi-robot me-1" style="color:#6366f1"></i>
+                    Assistente IA
+                    <span class="badge bg-light text-dark ms-2" style="font-size:.65rem">Beta</span>
+                </h6>
+
+                <div class="d-flex gap-2 mb-3">
+                    <button class="btn btn-sm flex-fill btn-outline-secondary msg-type-btn active"
+                            data-type="whatsapp" onclick="setMsgType(this)">
+                        <i class="bi bi-whatsapp me-1 text-success"></i>WhatsApp
+                    </button>
+                    <button class="btn btn-sm flex-fill btn-outline-secondary msg-type-btn"
+                            data-type="email" onclick="setMsgType(this)">
+                        <i class="bi bi-envelope me-1"></i>Email
+                    </button>
+                    <button class="btn btn-sm flex-fill btn-outline-secondary msg-type-btn"
+                            data-type="linkedin" onclick="setMsgType(this)">
+                        <i class="bi bi-linkedin me-1 text-primary"></i>LinkedIn
+                    </button>
+                </div>
+
+                <div id="aiOutput"
+                     class="border rounded p-3 mb-3"
+                     style="display:none;
+            font-size:.875rem;
+            white-space:pre-wrap;
+            line-height:1.7;
+            background:#fafafa;
+            max-height:420px;
+            overflow-y:auto;
+            word-break:break-word;
+            border-color:#e2e8f0 !important"></div>
+
+                <div id="aiPlaceholder" class="text-center text-muted py-4">
+                    <i class="bi bi-stars d-block mb-2" style="font-size:1.8rem;color:#6366f1"></i>
+                    Gera uma mensagem personalizada para <strong>@Model.BusinessName</strong>
+                </div>
+
+                <div class="d-flex gap-2">
+                    <button class="btn btn-accent flex-fill" id="generateBtn"
+                            onclick="generateMessage(@Model.Id)">
+                        <i class="bi bi-stars me-1"></i>Gerar Mensagem
+                    </button>
+                    <button class="btn btn-outline-secondary d-none" id="copyBtn"
+                            onclick="copyMessage()">
+                        <i class="bi bi-clipboard"></i>
+                    </button>
+                </div>
+            </div>
+
+            <!-- Lista de notas existentes -->
+            <div id="notesList" class="mb-3" style="max-height:320px;overflow-y:auto">
+                @if (!Model.Notes.Any())
+                {
+                    <p class="text-muted small" id="emptyMsg">
+                        Ainda não há notas. Adiciona a primeira!
+                    </p>
+                }
+                @foreach (var note in Model.Notes)
+                {
+                    <div class="border rounded p-3 mb-2 bg-light note-item">
+                        <div class="small text-muted mb-1">
+                            <i class="bi bi-clock me-1"></i>
+                            @note.CreatedAt.ToString("dd/MM/yyyy HH:mm")
+                        </div>
+                        <div>@note.Content</div>
+                    </div>
+                }
+            </div>
+
+            <!-- Formulário nova nota -->
+            <div class="border-top pt-3">
+                <textarea id="noteInput"
+                          class="form-control mb-2"
+                          rows="3"
+                          placeholder="ex: Pediu para ligar amanhã às 12h..."></textarea>
+                <button class="btn btn-accent w-100" onclick="addNote(@Model.Id)">
+                    <i class="bi bi-plus-lg me-1"></i>Adicionar Nota
+                </button>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        async function updateStatus(leadId, status) {
+            const res = await fetch(`/api/leads/${leadId}/status`, {
+                method:  'PATCH',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ status })
+            });
+            if (res.ok) {
+                showToast('Status actualizado com sucesso!', 'success');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast('Erro ao actualizar status.', 'error');
+            }
+        }
+
+        async function addNote(leadId) {
+            const input   = document.getElementById('noteInput');
+            const content = input.value.trim();
+            if (!content) { showToast('Escreve uma nota primeiro.', 'info'); return; }
+
+            const res = await fetch(`/api/leads/${leadId}/notes`, {
+                method:  'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body:    JSON.stringify({ content })
+            });
+
+            if (res.ok) {
+                const note = await res.json();
+
+                // Remove mensagem vazia se existir
+                document.getElementById('emptyMsg')?.remove();
+
+                // Injeta a nova nota no topo da lista sem recarregar
+                const list = document.getElementById('notesList');
+                const div  = document.createElement('div');
+                div.className = 'border rounded p-3 mb-2 bg-light note-item';
+                div.innerHTML = `
+                    <div class="small text-muted mb-1">
+                        <i class="bi bi-clock me-1"></i>${note.createdAt}
+                    </div>
+                    <div>${note.content}</div>`;
+                list.prepend(div);
+
+                input.value = '';
+                showToast('Nota adicionada!', 'success');
+            } else {
+                showToast('Erro ao adicionar nota.', 'error');
+            }
+        }
+
+                let currentMsgType = 'whatsapp';
+
+        function setMsgType(btn) {
+            document.querySelectorAll('.msg-type-btn').forEach(b => b.classList.remove('active'));
+            btn.classList.add('active');
+            currentMsgType = btn.dataset.type;
+        }
+
+        async function generateMessage(leadId) {
+            const btn = document.getElementById('generateBtn');
+            const output = document.getElementById('aiOutput');
+            const placeholder = document.getElementById('aiPlaceholder');
+            const copyBtn = document.getElementById('copyBtn');
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>A gerar...';
+            output.style.display = 'none';
+            placeholder.style.display = 'block';
+            placeholder.innerHTML = '<span class="spinner-border spinner-border-sm me-2"></span>A criar mensagem personalizada...';
+
+            try {
+                const res = await fetch(`/api/leads/${leadId}/generate-message`, {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body: JSON.stringify({ messageType: currentMsgType })
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    output.textContent = data.message;
+                    output.style.display = 'block';
+                    placeholder.style.display = 'none';
+                    copyBtn.classList.remove('d-none');
+                    showToast('Mensagem gerada pela IA!', 'success');
+                } else {
+                    showToast(data.message, 'error');
+                    placeholder.innerHTML = '<i class="bi bi-exclamation-triangle text-danger me-1"></i>Erro ao gerar mensagem.';
+                }
+            } catch {
+                showToast('Erro de rede.', 'error');
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-stars me-1"></i>Regenerar';
+            }
+        }
+
+        function copyMessage() {
+            const text = document.getElementById('aiOutput').textContent;
+            navigator.clipboard.writeText(text).then(() => showToast('Mensagem copiada!', 'success'));
+        }
+    </script>
+}

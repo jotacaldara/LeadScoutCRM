@@ -1,0 +1,304 @@
+﻿@using LeadScoutCRM.Models.Entities
+@{
+    ViewData["Title"] = "Admin Dashboard";
+    var nearLimit = ViewBag.NearLimit as List<(ApplicationUser User, int Count, int Limit)> ?? new();
+    var pastDue = ViewBag.PastDue as List<ApplicationUser> ?? new();
+    var recentUsers = ViewBag.RecentUsers as List<ApplicationUser> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">⚙️ Admin Dashboard</h4>
+        <span class="text-muted small">Gestão global do LeadScout CRM</span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/Admin/Revenue" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-graph-up me-1"></i>Revenue
+        </a>
+        <a href="/Admin/Subscriptions" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-credit-card me-1"></i>Subscrições
+        </a>
+        <a href="/Admin/EmailCenter" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-envelope me-1"></i>Email Center
+        </a>
+        <a href="/Admin/ExportUsers" class="btn btn-sm btn-accent">
+            <i class="bi bi-download me-1"></i>Export CSV
+        </a>
+    </div>
+</div>
+
+@* ── Alertas ── *@
+@if (nearLimit.Any() || pastDue.Any())
+{
+    <div class="mb-4">
+        @foreach (var (user, count, limit) in nearLimit)
+        {
+            <div class="alert alert-warning d-flex align-items-center justify-content-between py-2 px-3 mb-2 rounded-3">
+                <span>
+                    <i class="bi bi-exclamation-triangle-fill me-2"></i>
+                    <strong>@user.DisplayName</strong> (@user.Email) está a @count/@limit leads no plano Free.
+                </span>
+                <div class="d-flex gap-2">
+                    <form asp-action="SendReminder" asp-route-id="@user.Id" method="post" class="m-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reminderType" value="upgrade" />
+                        <button type="submit" class="btn btn-sm btn-warning">
+                            <i class="bi bi-envelope me-1"></i>Enviar Nudge
+                        </button>
+                    </form>
+                    <a href="/Admin/Users/@user.Id" class="btn btn-sm btn-outline-secondary">Ver</a>
+                </div>
+            </div>
+        }
+        @foreach (var user in pastDue)
+        {
+            <div class="alert alert-danger d-flex align-items-center justify-content-between py-2 px-3 mb-2 rounded-3">
+                <span>
+                    <i class="bi bi-exclamation-circle-fill me-2"></i>
+                    <strong>@user.DisplayName</strong> — pagamento em falta (Past Due).
+                </span>
+                <div class="d-flex gap-2">
+                    <form asp-action="SendReminder" asp-route-id="@user.Id" method="post" class="m-0">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="reminderType" value="renewal" />
+                        <button type="submit" class="btn btn-sm btn-danger">
+                            <i class="bi bi-envelope me-1"></i>Enviar Reminder
+                        </button>
+                    </form>
+                    <a href="/Admin/Users/@user.Id" class="btn btn-sm btn-outline-secondary">Ver</a>
+                </div>
+            </div>
+        }
+    </div>
+}
+
+@* ── KPIs principais ── *@
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#dcfce7">
+                    <i class="bi bi-currency-euro" style="color:#15803d;font-size:1.2rem"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">MRR</div>
+                    <div class="fw-bold fs-4">@ViewBag.MRR.ToString("0.00")€</div>
+                    <div class="text-muted" style="font-size:.72rem">ARR: @ViewBag.ARR.ToString("0")€</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#ede9fe">
+                    <i class="bi bi-people-fill" style="color:#6366f1"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Total Utilizadores</div>
+                    <div class="fw-bold fs-4">@ViewBag.TotalUsers</div>
+                    <div class="text-muted" style="font-size:.72rem">+@ViewBag.NewThisWeek esta semana</div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#dbeafe">
+                    <i class="bi bi-lightning-fill" style="color:#1d4ed8"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Pagantes</div>
+                    <div class="fw-bold fs-4">@(ViewBag.ProUsers + ViewBag.BusinessUsers)</div>
+                    <div class="text-muted" style="font-size:.72rem">
+                        Pro: @ViewBag.ProUsers &nbsp;·&nbsp; Biz: @ViewBag.BusinessUsers
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-3">
+            <div class="d-flex align-items-center gap-3">
+                <div class="icon-box" style="background:#fef9c3">
+                    <i class="bi bi-arrow-repeat" style="color:#a16207"></i>
+                </div>
+                <div>
+                    <div class="text-muted" style="font-size:.75rem">Conversão Free→Pago</div>
+                    <div class="fw-bold fs-4">@ViewBag.ConversionRate%</div>
+                    <div class="text-muted" style="font-size:.72rem">Total leads: @ViewBag.TotalLeads</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Gráfico + planos ── *@
+<div class="row g-4 mb-4">
+    <div class="col-lg-8">
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-graph-up me-1"></i>Novos utilizadores — últimos 14 dias
+            </h6>
+            <canvas id="usersChart" height="120"></canvas>
+        </div>
+    </div>
+    <div class="col-lg-4">
+        <div class="card table-card p-4 h-100">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-pie-chart me-1"></i>Distribuição de Planos
+            </h6>
+            <div class="d-flex flex-column gap-3 mt-2">
+                @{
+                    var total = (int)ViewBag.TotalUsers;
+                    var freeCount = (int)ViewBag.FreeUsers;
+                    var proCount = (int)ViewBag.ProUsers;
+                    var bizCount = (int)ViewBag.BusinessUsers;
+                    var freePct = total > 0 ? (int)Math.Round((double)freeCount / total * 100) : 0;
+                    var proPct = total > 0 ? (int)Math.Round((double)proCount / total * 100) : 0;
+                    var bizPct = total > 0 ? (int)Math.Round((double)bizCount / total * 100) : 0;
+                }
+                <div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <small class="text-muted">Free</small>
+                        <small class="fw-semibold">@freeCount (@freePct%)</small>
+                    </div>
+                    <div class="progress" style="height:6px;border-radius:4px">
+                        <div class="progress-bar bg-secondary" style="width:@freePct%"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <small class="text-muted">Pro</small>
+                        <small class="fw-semibold" style="color:#6366f1">@proCount (@proPct%)</small>
+                    </div>
+                    <div class="progress" style="height:6px;border-radius:4px">
+                        <div class="progress-bar" style="width:@proPct%;background:#6366f1"></div>
+                    </div>
+                </div>
+                <div>
+                    <div class="d-flex justify-content-between mb-1">
+                        <small class="text-muted">Business</small>
+                        <small class="fw-semibold text-success">@bizCount (@bizPct%)</small>
+                    </div>
+                    <div class="progress" style="height:6px;border-radius:4px">
+                        <div class="progress-bar bg-success" style="width:@bizPct%"></div>
+                    </div>
+                </div>
+            </div>
+            <hr style="border-color:#e2e8f0;margin:1.25rem 0">
+            <div class="d-flex justify-content-between">
+                <div class="text-center">
+                    <div class="fw-bold" style="color:#6366f1">@ViewBag.MRR.ToString("0")€</div>
+                    <div class="text-muted" style="font-size:.72rem">MRR</div>
+                </div>
+                <div class="text-center">
+                    <div class="fw-bold text-success">@ViewBag.ARR.ToString("0")€</div>
+                    <div class="text-muted" style="font-size:.72rem">ARR</div>
+                </div>
+                <div class="text-center">
+                    <div class="fw-bold">@ViewBag.ConversionRate%</div>
+                    <div class="text-muted" style="font-size:.72rem">Conversão</div>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* ── Utilizadores recentes ── *@
+<div class="card table-card">
+    <div class="card-header bg-white d-flex justify-content-between align-items-center py-3">
+        <span class="fw-semibold">Utilizadores Recentes</span>
+        <a href="/Admin/Users" class="btn btn-sm btn-outline-secondary">Ver todos</a>
+    </div>
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Utilizador</th>
+                    <th>Plano</th>
+                    <th>Estado</th>
+                    <th>Registo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @foreach (var user in recentUsers)
+                {
+                    <tr>
+                        <td>
+                            <div class="fw-medium" style="font-size:.9rem">@user.DisplayName</div>
+                            <div class="text-muted" style="font-size:.78rem">@user.Email</div>
+                        </td>
+                        <td class="align-middle">
+                            @{
+                                var (planBg, planColor, planLabel) = user.Plan switch
+                                {
+                                    SubscriptionPlan.Business => ("#dcfce7", "#15803d", "Business"),
+                                    SubscriptionPlan.Pro => ("#ede9fe", "#6366f1", "Pro"),
+                                    _ => ("#f1f5f9", "#64748b", "Free")
+                                };
+                            }
+                            <span class="badge rounded-pill px-3"
+                                  style="background:@planBg;color:@planColor;font-size:.75rem">
+                                @planLabel
+                            </span>
+                        </td>
+                        <td class="align-middle">
+                            @{
+                                var (sIcon, sColor, sLabel) = user.SubscriptionStatus switch
+                                {
+                                    SubscriptionStatus.Active => ("bi-check-circle-fill", "#15803d", "Activo"),
+                                    SubscriptionStatus.PastDue => ("bi-exclamation-circle-fill", "#a16207", "Past Due"),
+                                    SubscriptionStatus.Cancelled => ("bi-x-circle-fill", "#b91c1c", "Cancelado"),
+                                    _ => ("bi-circle", "#94a3b8", "Free")
+                                };
+                            }
+                            <span style="color:@sColor;font-size:.8rem">
+                                <i class="bi @sIcon me-1"></i>@sLabel
+                            </span>
+                        </td>
+                        <td class="align-middle text-muted small">@user.CreatedAt.ToString("dd/MM/yyyy")</td>
+                        <td class="align-middle text-end">
+                            <a href="/Admin/Users/@user.Id" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye"></i>
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        new Chart(document.getElementById('usersChart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(ViewBag.LeadsDayLabels),
+                datasets: [{
+                    label: 'Leads criadas',
+                    data: @Html.Raw(ViewBag.LeadsPerDay),
+                    backgroundColor: 'rgba(99,102,241,.6)',
+                    borderRadius: 5
+                }, {
+                    label: 'Novos utilizadores',
+                    data: @Html.Raw(ViewBag.UsersPerDay),
+                    backgroundColor: 'rgba(34,197,94,.6)',
+                    borderRadius: 5
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, ticks: { stepSize: 1 }, grid: { color: '#f1f5f9' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { position: 'bottom', labels: { boxWidth: 12, padding: 15 } } }
+            }
+        });
+    </script>
+}

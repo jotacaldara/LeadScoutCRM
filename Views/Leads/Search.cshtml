@@ -1,0 +1,193 @@
+﻿@model LeadScoutCRM.Models.ViewModels.SearchViewModel
+
+@{
+    ViewData["Title"] = "Nova Pesquisa";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Nova Pesquisa</h4>
+        <span class="text-muted" style="font-size:.875rem">
+            Encontra negócios locais via Google Places
+        </span>
+    </div>
+</div>
+
+<div class="card table-card mb-4 p-4">
+    <form asp-action="Search" method="post">
+        @Html.AntiForgeryToken()
+        <div class="row g-3 align-items-end">
+            <div class="col-md-5">
+                <label asp-for="Niche" class="form-label fw-medium">
+                    <i class="bi bi-tag me-1"></i>Nicho de Negócio
+                </label>
+                <input asp-for="Niche"
+                       class="form-control form-control-lg"
+                       placeholder="ex: Petshop, Pintor, Dentista" />
+                <span asp-validation-for="Niche" class="text-danger small"></span>
+            </div>
+            <div class="col-md-5">
+                <label asp-for="Location" class="form-label fw-medium">
+                    <i class="bi bi-geo-alt me-1"></i>Localização
+                </label>
+                <input asp-for="Location"
+                       class="form-control form-control-lg"
+                       placeholder="ex: Lisboa, Porto, Braga" />
+                <span asp-validation-for="Location" class="text-danger small"></span>
+            </div>
+            <div class="col-md-2">
+                <button type="submit" class="btn btn-accent btn-lg w-100">
+                    <i class="bi bi-search me-1"></i> Pesquisar
+                </button>
+            </div>
+        </div>
+    </form>
+</div>
+
+@if (Model.Results.Any())
+{
+    <div class="card table-card">
+        <div class="card-header bg-white py-3">
+            <span class="fw-semibold">
+                <i class="bi bi-list-ul me-1"></i>
+                @Model.Results.Count resultados para
+                "<strong>@Model.Niche</strong>" em "<strong>@Model.Location</strong>"
+            </span>
+        </div>
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Telefone</th>
+                        <th>Website</th>
+                        <th>Morada</th>
+                        <th>Rating</th>
+                        <th>Acção</th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var place in Model.Results)
+                    {
+                        <tr id="row-@place.PlaceId">
+                            <td class="fw-medium">@place.BusinessName</td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(place.PhoneNumber))
+                                {
+                                    <a href="tel:@place.PhoneNumber" class="text-decoration-none">
+                                        <i class="bi bi-telephone me-1"></i>@place.PhoneNumber
+                                    </a>
+                                }
+                                else
+                                {
+
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                @if (!string.IsNullOrEmpty(place.Website))
+                                {
+                                    <a href="@place.Website" target="_blank"
+                                       class="text-decoration-none text-truncate d-block"
+                                       style="max-width:160px">
+                                        <i class="bi bi-globe me-1"></i>
+                                        @place.Website.Replace("https://", "").Replace("http://", "")
+                                    </a>
+                                }
+                                else
+                                {
+
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td style="max-width:200px">
+                                <span class="text-muted small">@place.Address</span>
+                            </td>
+                            <td>
+                                @if (place.Rating.HasValue)
+                                {
+                                    <span class="badge bg-warning text-dark">
+                                        <i class="bi bi-star-fill me-1"></i>@place.Rating.Value.ToString("0.0")
+                                    </span>
+                                }
+                                else
+                                {
+
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td>
+                                <button class="btn btn-sm btn-accent"
+                                        onclick="saveLead(this)"
+                                        data-place-id="@place.PlaceId"
+                                        data-name="@place.BusinessName"
+                                        data-phone="@place.PhoneNumber"
+                                        data-website="@place.Website"
+                                        data-address="@place.Address"
+                                        data-niche="@Model.Niche"
+                                        data-city="@Model.Location">
+                                    <i class="bi bi-plus-lg me-1"></i>Guardar
+                                </button>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+    </div>
+}
+else if (TempData["Info"] != null)
+{
+    <div class="alert alert-info">
+        <i class="bi bi-info-circle me-2"></i>@TempData["Info"]
+    </div>
+}
+
+@section Scripts {
+    <script>
+        async function saveLead(btn) {
+            const payload = {
+                businessName: btn.dataset.name,
+                phoneNumber:  btn.dataset.phone,
+                website:      btn.dataset.website,
+                address:      btn.dataset.address,
+                niche:        btn.dataset.niche,
+                city:         btn.dataset.city,
+                placeId:      btn.dataset.placeId
+            };
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm"></span>';
+
+            try {
+                const res = await fetch('/api/leads', {
+                    method:  'POST',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify(payload)
+                });
+
+                const data = await res.json();
+
+                if (res.ok) {
+                    // Sucesso: transforma o botão em "Guardado"
+                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardado';
+                    btn.classList.replace('btn-accent', 'btn-success');
+                    showToast(data.message, 'success');
+                } else if (res.status === 409) {
+                    // Conflito: já existe
+                    btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Já no CRM';
+                    btn.classList.replace('btn-accent', 'btn-secondary');
+                    showToast(data.message, 'info');
+                } else {
+                    btn.disabled = false;
+                    btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Guardar';
+                    showToast('Erro ao guardar. Tenta novamente.', 'error');
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Guardar';
+                showToast('Erro de rede.', 'error');
+            }
+        }
+    </script>
+}

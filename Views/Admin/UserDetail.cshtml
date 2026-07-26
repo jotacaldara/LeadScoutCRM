@@ -1,0 +1,279 @@
+﻿@model LeadScoutCRM.Models.Entities.ApplicationUser
+@using LeadScoutCRM.Models.Entities
+@{
+    ViewData["Title"] = "Detalhe do Utilizador";
+    var leads = ViewBag.Leads as List<Lead> ?? new();
+    var roles = ViewBag.Roles as IList<string> ?? new List<string>();
+    var leadsByStatus = ViewBag.LeadsByStatus as Dictionary<string, int> ?? new();
+}
+
+<div class="mb-4">
+    <a href="/Admin/Users" class="text-muted text-decoration-none small">
+        <i class="bi bi-arrow-left me-1"></i>Voltar aos Utilizadores
+    </a>
+    <h4 class="fw-bold mb-0 mt-1">@Model.DisplayName</h4>
+    <span class="text-muted small">@Model.Email</span>
+</div>
+
+@if (TempData["Success"] != null)
+{
+    <div class="alert alert-success rounded-3 mb-4">
+        <i class="bi bi-check-circle-fill me-2"></i>@TempData["Success"]
+    </div>
+}
+@if (TempData["Error"] != null)
+{
+    <div class="alert alert-danger rounded-3 mb-4">
+        <i class="bi bi-exclamation-circle-fill me-2"></i>@TempData["Error"]
+    </div>
+}
+
+<div class="row g-4">
+
+    @* ── Coluna esquerda ── *@
+    <div class="col-lg-4">
+
+        @* Perfil *@
+        <div class="card table-card p-4 mb-4">
+            <h6 class="fw-semibold mb-3"><i class="bi bi-person-circle me-1"></i>Perfil</h6>
+
+            <div class="d-flex align-items-center gap-3 mb-4">
+                <div style="width:56px;height:56px;border-radius:50%;background:#ede9fe;
+                            display:flex;align-items:center;justify-content:center;
+                            font-weight:700;font-size:1.3rem;color:#6366f1;">
+                    @(Model.DisplayName?.Substring(0, 1).ToUpper() ?? "?")
+                </div>
+                <div>
+                    <div class="fw-bold">@Model.DisplayName</div>
+                    <div class="text-muted small">@Model.Email</div>
+                    <div class="d-flex gap-1 mt-1">
+                        @foreach (var role in roles)
+                        {
+                            <span class="badge" style="background:#ede9fe;color:#6366f1;font-size:.68rem">@role</span>
+                        }
+                    </div>
+                </div>
+            </div>
+
+            <dl class="row small mb-0">
+                <dt class="col-5 text-muted">ID</dt>
+                <dd class="col-7 text-truncate" title="@Model.Id" style="font-size:.72rem">@Model.Id</dd>
+
+                <dt class="col-5 text-muted">Membro desde</dt>
+                <dd class="col-7">@Model.CreatedAt.ToString("dd/MM/yyyy")</dd>
+
+                <dt class="col-5 text-muted">Leads</dt>
+                <dd class="col-7 fw-semibold">@ViewBag.LeadCount</dd>
+
+                <dt class="col-5 text-muted">Notas</dt>
+                <dd class="col-7">@ViewBag.NoteCount</dd>
+
+                <dt class="col-5 text-muted">Stripe ID</dt>
+                <dd class="col-7 text-truncate" style="font-size:.72rem">
+                    @if (!string.IsNullOrEmpty(Model.StripeCustomerId))
+                    {
+                        <a href="https://dashboard.stripe.com/customers/@Model.StripeCustomerId"
+                           target="_blank" class="text-decoration-none" style="color:#6366f1">
+                            @Model.StripeCustomerId <i class="bi bi-box-arrow-up-right ms-1" style="font-size:.65rem"></i>
+                        </a>
+                    }
+                    else
+                    {
+
+                        <span>—</span>
+                    }
+                </dd>
+
+                <dt class="col-5 text-muted">Sub. ID</dt>
+                <dd class="col-7 text-truncate" style="font-size:.72rem">
+                    @(Model.StripeSubscriptionId ?? "—")
+                </dd>
+
+                @if (Model.SubscriptionStartedAt.HasValue)
+                {
+                    <dt class="col-5 text-muted">Início sub.</dt>
+                    <dd class="col-7">@Model.SubscriptionStartedAt.Value.ToString("dd/MM/yyyy")</dd>
+                }
+                @if (Model.SubscriptionEndsAt.HasValue)
+                {
+                    <dt class="col-5 text-muted">Fim sub.</dt>
+                    <dd class="col-7 text-danger fw-semibold">
+                        @Model.SubscriptionEndsAt.Value.ToString("dd/MM/yyyy")
+                    </dd>
+                }
+            </dl>
+
+            @* Mini stats dos leads *@
+            @if (leadsByStatus.Any())
+            {
+                <hr style="border-color:#e2e8f0;margin:1rem 0">
+                <div class="row g-1">
+                    @foreach (var kv in leadsByStatus)
+                    {
+                        <div class="col-6">
+                            <div class="p-2 rounded" style="background:#f8fafc;font-size:.75rem">
+                                <div class="fw-semibold">@kv.Value</div>
+                                <div class="text-muted">@kv.Key</div>
+                            </div>
+                        </div>
+                    }
+                </div>
+            }
+        </div>
+
+        @* Alterar plano *@
+        <div class="card table-card p-4 mb-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-shield-lock me-1"></i>Alterar Plano
+                <span class="badge bg-warning text-dark ms-1" style="font-size:.65rem">Admin</span>
+            </h6>
+            @foreach (var plan in Enum.GetValues<SubscriptionPlan>())
+            {
+                var isActive = Model.Plan == plan;
+                <form asp-action="SetPlan" asp-route-id="@Model.Id" method="post" class="mb-2">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="plan" value="@plan" />
+                    <button type="submit"
+                            class="btn btn-sm w-100 text-start @(isActive ? "btn-accent" : "btn-outline-secondary")"
+                            @(isActive ? "disabled" : "")>
+                        <i class="bi @(isActive ? "bi-check-lg" : "bi-arrow-right") me-1"></i>
+                        @plan @(isActive ? "(actual)" : "")
+                    </button>
+                </form>
+            }
+        </div>
+
+        @* Enviar emails *@
+        <div class="card table-card p-4 mb-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-envelope me-1"></i>Enviar Email
+            </h6>
+            <div class="d-grid gap-2 mb-3">
+                <form asp-action="SendReminder" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reminderType" value="renewal" />
+                    <button type="submit" class="btn btn-sm btn-outline-primary w-100 text-start">
+                        <i class="bi bi-arrow-repeat me-1"></i>Reminder de Renovação
+                    </button>
+                </form>
+                <form asp-action="SendReminder" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reminderType" value="upgrade" />
+                    <button type="submit" class="btn btn-sm btn-outline-warning w-100 text-start">
+                        <i class="bi bi-arrow-up-circle me-1"></i>Nudge de Upgrade
+                    </button>
+                </form>
+                <form asp-action="SendReminder" asp-route-id="@Model.Id" method="post">
+                    @Html.AntiForgeryToken()
+                    <input type="hidden" name="reminderType" value="welcome" />
+                    <button type="submit" class="btn btn-sm btn-outline-secondary w-100 text-start">
+                        <i class="bi bi-hand-wave me-1"></i>Email de Boas-vindas
+                    </button>
+                </form>
+            </div>
+
+            @* Email personalizado *@
+            <details class="mt-1">
+                <summary class="small text-muted mb-2" style="cursor:pointer">
+                    <i class="bi bi-pencil me-1"></i>Email personalizado
+                </summary>
+                <form asp-action="SendCustomEmail" asp-route-id="@Model.Id" method="post" class="mt-2">
+                    @Html.AntiForgeryToken()
+                    <input type="text" name="subject" class="form-control form-control-sm mb-2"
+                           placeholder="Assunto..." required />
+                    <textarea name="body" class="form-control form-control-sm mb-2" rows="4"
+                              placeholder="Corpo do email..." required></textarea>
+                    <button type="submit" class="btn btn-sm btn-accent w-100">
+                        <i class="bi bi-send me-1"></i>Enviar
+                    </button>
+                </form>
+            </details>
+        </div>
+
+        @* Zona de perigo *@
+        <div class="card table-card p-4" style="border-left:4px solid #fee2e2">
+            <h6 class="fw-semibold text-danger mb-2">
+                <i class="bi bi-exclamation-triangle me-1"></i>Zona de Perigo
+            </h6>
+            <p class="text-muted small mb-3">
+                Eliminar o utilizador apaga permanentemente todos os seus dados, leads e notas.
+            </p>
+            <form asp-action="DeleteUser" asp-route-id="@Model.Id" method="post"
+                  onsubmit="return confirm('Tens a certeza que queres eliminar @Html.Raw(Model.Email)? Esta acção é irreversível.')">
+                @Html.AntiForgeryToken()
+                <button type="submit" class="btn btn-danger btn-sm w-100">
+                    <i class="bi bi-trash3 me-1"></i>Eliminar Utilizador
+                </button>
+            </form>
+        </div>
+    </div>
+
+    @* ── Coluna direita: leads ── *@
+    <div class="col-lg-8">
+        <div class="card table-card">
+            <div class="card-header bg-white py-3 d-flex justify-content-between align-items-center">
+                <span class="fw-semibold">
+                    <i class="bi bi-people me-1"></i>Leads (@leads.Count@(leads.Count == 20 ? "+" : ""))
+                </span>
+                @if (ViewBag.LeadCount > 0)
+                {
+                    <span class="badge rounded-pill px-3"
+                          style="background:#ede9fe;color:#6366f1;font-size:.75rem">
+                        @ViewBag.LeadCount total
+                    </span>
+                }
+            </div>
+
+            @if (!leads.Any())
+            {
+                <div class="text-center text-muted py-5">
+                    <i class="bi bi-inbox d-block mb-2" style="font-size:2rem;opacity:.3"></i>
+                    Este utilizador ainda não tem leads.
+                </div>
+            }
+            else
+            {
+                <div class="table-responsive">
+                    <table class="table table-hover mb-0">
+                        <thead>
+                            <tr>
+                                <th>Empresa</th>
+                                <th>Nicho</th>
+                                <th>Status</th>
+                                <th>Cidade</th>
+                                <th>Data</th>
+                            </tr>
+                        </thead>
+                        <tbody>
+                            @foreach (var lead in leads)
+                            {
+                                <tr>
+                                    <td class="fw-medium">
+                                        @lead.BusinessName
+                                        @if (!string.IsNullOrEmpty(lead.Website))
+                                        {
+                                            <a href="@lead.Website" target="_blank"
+                                               class="ms-1" style="color:#6366f1;font-size:.75rem">
+                                                <i class="bi bi-box-arrow-up-right"></i>
+                                            </a>
+                                        }
+                                    </td>
+                                    <td><span class="badge bg-light text-dark">@(lead.Niche ?? "—")</span></td>
+                                    <td>@Html.Partial("_StatusBadge", lead.Status)</td>
+                                    <td class="text-muted small">@(lead.City ?? "—")</td>
+                                    <td class="text-muted small">@lead.CreatedAt.ToString("dd/MM/yy")</td>
+                                </tr>
+                            }
+                        </tbody>
+                    </table>
+                </div>
+                @if (leads.Count == 20)
+                {
+                    <div class="card-footer bg-white text-muted small py-2 px-3">
+                        A mostrar as 20 leads mais recentes de @ViewBag.LeadCount total.
+                    </div>
+                }
+            }
+        </div>
+    </div>
+</div>

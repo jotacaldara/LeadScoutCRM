@@ -1,0 +1,222 @@
+﻿@model List<LeadScoutCRM.Models.Entities.Lead>
+@using LeadScoutCRM.Models.Entities
+@using LeadScoutCRM.Services
+@{
+    ViewData["Title"] = "Todas as Leads";
+    var statusFilter = ViewBag.StatusFilter as string;
+    var searchTerm = ViewBag.SearchTerm as string;
+    var nicheFilter = ViewBag.NicheFilter as string;
+    var niches = ViewBag.Niches as List<string> ?? new List<string>();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Todas as Leads</h4>
+        <span class="text-muted" style="font-size:.875rem">
+            @ViewBag.TotalLeads lead@(ViewBag.TotalLeads != 1 ? "s" : "") no teu CRM
+        </span>
+    </div>
+    <a href="/Leads/Search" class="btn btn-accent px-4">
+        <i class="bi bi-plus-lg me-1"></i> Nova Pesquisa
+    </a>
+</div>
+
+<!-- ── Filtros ── -->
+<div class="card table-card p-3 mb-4">
+    <form method="get" action="/Leads">
+        <div class="row g-2 align-items-center">
+            <!-- Pesquisa -->
+            <div class="col-md-4">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text"
+                           name="searchTerm"
+                           value="@searchTerm"
+                           class="form-control border-start-0"
+                           placeholder="Pesquisar empresa ou cidade..." />
+                </div>
+            </div>
+
+            <!-- Filtro por status -->
+            <div class="col-md-3">
+                <select name="statusFilter" class="form-select">
+                    <option value="">Todos os estados</option>
+                    @foreach (var s in Enum.GetValues<LeadStatus>())
+                    {
+                        var label = s switch
+                        {
+                            LeadStatus.Novo => "Novo",
+                            LeadStatus.MensagemEnviada => "Mensagem Enviada",
+                            LeadStatus.EmNegociacao => "Em Negociação",
+                            LeadStatus.ClienteFechado => "Cliente Fechado",
+                            LeadStatus.Rejeitado => "Rejeitado",
+                            _ => s.ToString()
+                        };
+                        <option value="@s.ToString()" selected="@(statusFilter == s.ToString())">@label</option>
+                    }
+                </select>
+            </div>
+
+            <!-- Filtro por nicho -->
+            @if (niches.Any())
+            {
+                <div class="col-md-3">
+                    <select name="niche" class="form-select">
+                        <option value="">Todos os nichos</option>
+                        @foreach (var n in niches)
+                        {
+                            <option value="@n" selected="@(nicheFilter == n)">@n</option>
+                        }
+                    </select>
+                </div>
+            }
+
+            <div class="col-auto d-flex gap-2">
+                <button type="submit" class="btn btn-accent">
+                    <i class="bi bi-funnel me-1"></i>Filtrar
+                </button>
+                @if (!string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(nicheFilter))
+                {
+                    <a href="/Leads" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg"></i>
+                    </a>
+                }
+            </div>
+        </div>
+    </form>
+</div>
+
+<!-- ── Tabela de Leads ── -->
+<div class="card table-card">
+    @if (!Model.Any())
+    {
+        <div class="text-center text-muted py-5">
+            <i class="bi bi-inbox d-block mb-2" style="font-size:2.5rem;opacity:.3"></i>
+            <p class="mb-2">
+                @if (!string.IsNullOrEmpty(searchTerm) || !string.IsNullOrEmpty(statusFilter) || !string.IsNullOrEmpty(nicheFilter))
+                {
+                    <span>Nenhuma lead corresponde aos filtros.</span>
+                }
+                else
+                {
+                    <span>Ainda não tens leads. Faz a tua primeira pesquisa!</span>
+                }
+            </p>
+            <a href="/Leads/Search" class="btn btn-accent btn-sm mt-2">
+                <i class="bi bi-search me-1"></i>Nova Pesquisa
+            </a>
+        </div>
+    }
+    else
+    {
+        <div class="table-responsive">
+            <table class="table table-hover mb-0">
+                <thead>
+                    <tr>
+                        <th>Empresa</th>
+                        <th>Nicho</th>
+                        <th>Cidade</th>
+                        <th>Contacto</th>
+                        <th>Status</th>
+                        <th>Score</th>
+                        <th>Data</th>
+                        <th></th>
+                    </tr>
+                </thead>
+                <tbody>
+                    @foreach (var lead in Model)
+                    {
+                        var score = LeadScoringService.CalculateScore(lead);
+                        var (scoreLabel, scoreCss) = LeadScoringService.GetScoreBadge(score);
+
+                        <tr>
+                            <td class="fw-medium align-middle">@lead.BusinessName</td>
+                            <td class="align-middle">
+                                @if (!string.IsNullOrEmpty(lead.Niche))
+                                {
+                                    <span class="badge bg-light text-dark">@lead.Niche</span>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="align-middle text-muted small">@(lead.City ?? "—")</td>
+                            <td class="align-middle">
+                                @if (!string.IsNullOrEmpty(lead.PhoneNumber))
+                                {
+                                    <a href="tel:@lead.PhoneNumber" class="text-decoration-none small">
+                                        <i class="bi bi-telephone me-1"></i>@lead.PhoneNumber
+                                    </a>
+                                }
+                                else if (!string.IsNullOrEmpty(lead.Website))
+                                {
+                                    <a href="@lead.Website" target="_blank" class="text-decoration-none small text-truncate d-block" style="max-width:140px">
+                                        <i class="bi bi-globe me-1"></i>@lead.Website.Replace("https://", "").Replace("http://", "")
+                                    </a>
+                                }
+                                else
+                                {
+                                    <span class="text-muted">—</span>
+                                }
+                            </td>
+                            <td class="align-middle">
+                                @Html.Partial("_StatusBadge", lead.Status)
+                            </td>
+                            <td class="align-middle">
+                                <span class="badge rounded-pill px-2 py-1" style="font-size:.7rem;@scoreCss">
+                                    @scoreLabel · @score
+                                </span>
+                            </td>
+                            <td class="text-muted align-middle" style="font-size:.85rem">
+                                @lead.CreatedAt.ToString("dd/MM/yyyy")
+                            </td>
+                            <td class="align-middle text-end">
+                                <div class="d-flex gap-1 justify-content-end">
+                                    <a href="/Leads/Detail/@lead.Id"
+                                       class="btn btn-sm btn-outline-secondary"
+                                       title="Ver detalhe">
+                                        <i class="bi bi-eye"></i>
+                                    </a>
+                                    <button class="btn btn-sm btn-outline-danger"
+                                            onclick="deleteLead(@lead.Id, '@lead.BusinessName.Replace("'", "\\'")' )"
+                                            title="Apagar">
+                                        <i class="bi bi-trash"></i>
+                                    </button>
+                                </div>
+                            </td>
+                        </tr>
+                    }
+                </tbody>
+            </table>
+        </div>
+
+        <div class="card-footer bg-white text-muted small py-2 px-3 border-top">
+            A mostrar @Model.Count lead@(Model.Count != 1 ? "s" : "")
+            @if (@ViewBag.TotalLeads != Model.Count)
+            {
+                <span>(de @ViewBag.TotalLeads no total)</span>
+            }
+        </div>
+    }
+</div>
+
+@section Scripts {
+    <script>
+        async function deleteLead(id, name) {
+            if (!confirm(`Tens a certeza que queres apagar "${name}"? Esta acção não pode ser desfeita.`))
+                return;
+
+            const res = await fetch(`/api/leads/${id}`, { method: 'DELETE' });
+
+            if (res.status === 204) {
+                showToast(`"${name}" apagada com sucesso.`, 'success');
+                setTimeout(() => location.reload(), 800);
+            } else {
+                showToast('Erro ao apagar lead.', 'error');
+            }
+        }
+    </script>
+}

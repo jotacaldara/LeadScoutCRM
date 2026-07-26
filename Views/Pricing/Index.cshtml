@@ -1,0 +1,80 @@
+﻿@{
+    ViewData["Title"] = "Preços";
+    var currentPlan = (LeadScoutCRM.Models.Entities.SubscriptionPlan)ViewBag.CurrentPlan;
+    var plans = (Dictionary<LeadScoutCRM.Models.Entities.SubscriptionPlan,
+                 LeadScoutCRM.Models.Entities.PlanInfo>)ViewBag.Plans;
+}
+
+<div class="text-center mb-5">
+    <h2 class="fw-bold">Escolhe o teu plano</h2>
+    <p class="text-muted">Começa grátis. Faz upgrade quando precisares.</p>
+</div>
+
+<div class="row justify-content-center g-4">
+    @foreach (var (plan, info) in plans)
+    {
+        var isCurrentPlan = plan == currentPlan;
+        var isPro = plan == LeadScoutCRM.Models.Entities.SubscriptionPlan.Pro;
+
+        <div class="col-md-4">
+            <div class="card p-4 h-100 @(isPro ? "border-primary border-2" : "")">
+                @if (isPro)
+                {
+                    <div class="badge bg-primary mb-2" style="width:fit-content">Mais popular</div>
+                }
+                <h5 class="fw-bold">@info.Name</h5>
+                <div class="my-3">
+                    <span class="fs-2 fw-bold">@info.PricePerMonth€</span>
+                    <span class="text-muted">/mês</span>
+                </div>
+                <ul class="list-unstyled">
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        @(info.LeadLimit == int.MaxValue ? "Leads ilimitadas" : $"{info.LeadLimit} leads")
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi bi-check-circle-fill text-success me-2"></i>
+                        Pipeline Kanban
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi @(info.HasExport ? "bi-check-circle-fill text-success" : "bi-x-circle text-muted") me-2"></i>
+                        Exportar leads (CSV)
+                    </li>
+                    <li class="mb-2">
+                        <i class="bi @(info.HasApiAccess ? "bi-check-circle-fill text-success" : "bi-x-circle text-muted") me-2"></i>
+                        Acesso API
+                    </li>
+                </ul>
+
+                @if (isCurrentPlan)
+                {
+                    <button class="btn btn-outline-secondary w-100 mt-auto" disabled>
+                        Plano actual
+                    </button>
+                }
+                else if (plan == LeadScoutCRM.Models.Entities.SubscriptionPlan.Free)
+                {
+                    <a href="/Account/Register" class="btn btn-outline-primary w-100 mt-auto">
+                        Começar grátis
+                    </a>
+                }
+                else if (User.Identity?.IsAuthenticated == true)
+                {
+                    <form asp-controller="Account" asp-action="Upgrade" method="post">
+                        @Html.AntiForgeryToken()
+                        <input type="hidden" name="plan" value="@plan" />
+                        <button type="submit" class="btn @(isPro ? "btn-primary" : "btn-outline-primary") w-100 mt-auto">
+                            Fazer upgrade para @info.Name
+                        </button>
+                    </form>
+                }
+                else
+                {
+                    <a href="/Account/Register" class="btn btn-primary w-100 mt-auto">
+                        Começar com @info.Name
+                    </a>
+                }
+            </div>
+        </div>
+    }
+</div>

@@ -1,0 +1,151 @@
+﻿@model List<LeadScoutCRM.Models.Entities.ApplicationUser>
+@using LeadScoutCRM.Models.Entities
+@{
+    ViewData["Title"] = "Utilizadores";
+    var leadCounts = ViewBag.LeadCounts as Dictionary<string, int> ?? new();
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/Admin" class="text-muted text-decoration-none small">
+            <i class="bi bi-arrow-left me-1"></i>Admin Dashboard
+        </a>
+        <h4 class="fw-bold mb-0 mt-1">Utilizadores</h4>
+        <span class="text-muted small">@Model.Count utilizadores registados</span>
+    </div>
+</div>
+
+<!-- Barra de pesquisa -->
+<div class="card table-card p-3 mb-4">
+    <form method="get" action="/Admin/Users">
+        <div class="row g-2 align-items-center">
+            <div class="col">
+                <div class="input-group">
+                    <span class="input-group-text bg-white border-end-0">
+                        <i class="bi bi-search text-muted"></i>
+                    </span>
+                    <input type="text"
+                           name="search"
+                           value="@Context.Request.Query["search"]"
+                           class="form-control border-start-0"
+                           placeholder="Pesquisar por email ou nome..." />
+                </div>
+            </div>
+            <div class="col-auto">
+                <button type="submit" class="btn btn-accent px-4">
+                    Pesquisar
+                </button>
+            </div>
+            @if (!string.IsNullOrEmpty(Context.Request.Query["search"]))
+            {
+                <div class="col-auto">
+                    <a href="/Admin/Users" class="btn btn-outline-secondary">
+                        <i class="bi bi-x-lg me-1"></i>Limpar
+                    </a>
+                </div>
+            }
+        </div>
+    </form>
+</div>
+
+<!-- Tabela de utilizadores -->
+<div class="card table-card">
+    <div class="table-responsive">
+        <table class="table table-hover mb-0">
+            <thead>
+                <tr>
+                    <th>Utilizador</th>
+                    <th>Plano</th>
+                    <th>Estado</th>
+                    <th>Leads</th>
+                    <th>Registo</th>
+                    <th></th>
+                </tr>
+            </thead>
+            <tbody>
+                @if (!Model.Any())
+                {
+                    <tr>
+                        <td colspan="6" class="text-center text-muted py-5">
+                            <i class="bi bi-people d-block mb-2" style="font-size:2rem;opacity:.3"></i>
+                            Nenhum utilizador encontrado.
+                        </td>
+                    </tr>
+                }
+                @foreach (var user in Model)
+                {
+                    var userLeads = leadCounts.TryGetValue(user.Id, out var lc) ? lc : 0;
+
+                    <tr>
+                        <td>
+                            <div class="d-flex align-items-center gap-2">
+                                <div style="width:36px;height:36px;border-radius:50%;
+                                                background:#ede9fe;display:flex;align-items:center;
+                                                justify-content:center;font-weight:700;
+                                                font-size:.85rem;color:#6366f1;flex-shrink:0;">
+                                    @(user.DisplayName?.Substring(0, 1).ToUpper() ?? "?")
+                                </div>
+                                <div>
+                                    <div class="fw-medium" style="font-size:.9rem">@user.DisplayName</div>
+                                    <div class="text-muted" style="font-size:.78rem">@user.Email</div>
+                                </div>
+                            </div>
+                        </td>
+                        <td class="align-middle">
+                            @{
+                                var (planBg, planColor, planLabel) = user.Plan switch
+                                {
+                                    SubscriptionPlan.Business => ("#dcfce7", "#15803d", "Business"),
+                                    SubscriptionPlan.Pro => ("#ede9fe", "#6366f1", "Pro"),
+                                    _ => ("#f1f5f9", "#64748b", "Free")
+                                };
+                            }
+                            <span class="badge rounded-pill px-3"
+                                  style="background:@planBg;color:@planColor;font-size:.75rem">
+                                @planLabel
+                            </span>
+                        </td>
+                        <td class="align-middle">
+                            @{
+                                var (statusIcon, statusColor, statusLabel) = user.SubscriptionStatus switch
+                                {
+                                    SubscriptionStatus.Active => ("bi-check-circle-fill", "#15803d", "Activo"),
+                                    SubscriptionStatus.PastDue => ("bi-exclamation-circle-fill", "#a16207", "Pagamento em falta"),
+                                    SubscriptionStatus.Cancelled => ("bi-x-circle-fill", "#b91c1c", "Cancelado"),
+                                    _ => ("bi-circle", "#94a3b8", "Free")
+                                };
+                            }
+                            <span style="color:@statusColor;font-size:.8rem">
+                                <i class="bi @statusIcon me-1"></i>@statusLabel
+                            </span>
+                        </td>
+                        <td class="align-middle">
+                            <span class="fw-semibold" style="font-size:.9rem">@userLeads</span>
+                            @if (user.Plan == SubscriptionPlan.Free && userLeads >= 8)
+                            {
+                                <i class="bi bi-exclamation-triangle-fill text-warning ms-1"
+                                   title="Perto do limite Free"></i>
+                            }
+                        </td>
+                        <td class="align-middle text-muted" style="font-size:.82rem">
+                            @user.CreatedAt.ToString("dd/MM/yyyy")
+                        </td>
+                        <td class="align-middle text-end">
+                            <a href="/Admin/Users/@user.Id"
+                               class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-eye me-1"></i>Detalhes
+                            </a>
+                        </td>
+                    </tr>
+                }
+            </tbody>
+        </table>
+    </div>
+
+    @if (Model.Any())
+    {
+        <div class="card-footer bg-white text-muted small py-2 px-3 border-top">
+            A mostrar @Model.Count utilizador@(Model.Count != 1 ? "es" : "")
+        </div>
+    }
+</div>

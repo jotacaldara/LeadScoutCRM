@@ -1,0 +1,18 @@
+﻿@using LeadScoutCRM.Models.Entities
+@model LeadScoutCRM.Models.Entities.LeadStatus
+
+@{
+    var (cssClass, icon, label) = Model switch
+    {
+        LeadStatus.Novo => ("badge-novo", "bi-star-fill", "Novo"),
+        LeadStatus.MensagemEnviada => ("badge-mensagemenviada", "bi-chat-dots-fill", "Mensagem Enviada"),
+        LeadStatus.EmNegociacao => ("badge-emnegociacao", "bi-arrow-left-right", "Em Negociação"),
+        LeadStatus.ClienteFechado => ("badge-clientefechado", "bi-trophy-fill", "Cliente Fechado"),
+        LeadStatus.Rejeitado => ("badge-rejeitado", "bi-x-circle-fill", "Rejeitado"),
+        _ => ("bg-secondary", "bi-question", "Desconhecido")
+    };
+}
+
+<span class="badge rounded-pill @cssClass px-2 py-1" style="font-size:.75rem">
+    <i class="bi @icon me-1"></i>@label
+</span>

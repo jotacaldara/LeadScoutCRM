@@ -1,0 +1,174 @@
+﻿@{
+    ViewData["Title"] = "Revenue Analytics";
+}
+
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <a href="/Admin" class="text-muted text-decoration-none small">
+            <i class="bi bi-arrow-left me-1"></i>Admin Dashboard
+        </a>
+        <h4 class="fw-bold mb-0 mt-1">💰 Revenue Analytics</h4>
+        <span class="text-muted small">Métricas financeiras da plataforma</span>
+    </div>
+    <a href="/Admin/ExportUsers" class="btn btn-sm btn-accent">
+        <i class="bi bi-download me-1"></i>Export CSV
+    </a>
+</div>
+
+@* ── KPIs ── *@
+<div class="row g-3 mb-4">
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-4" style="border-top:3px solid #6366f1">
+            <div class="text-muted small mb-1">MRR</div>
+            <div class="fw-bold" style="font-size:1.8rem;color:#6366f1">@ViewBag.MRR.ToString("0.00")€</div>
+            <div class="text-muted" style="font-size:.75rem">Monthly Recurring Revenue</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-4" style="border-top:3px solid #15803d">
+            <div class="text-muted small mb-1">ARR</div>
+            <div class="fw-bold" style="font-size:1.8rem;color:#15803d">@ViewBag.ARR.ToString("0")€</div>
+            <div class="text-muted" style="font-size:.75rem">Annual Recurring Revenue</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-4" style="border-top:3px solid #a16207">
+            <div class="text-muted small mb-1">ARPU</div>
+            <div class="fw-bold" style="font-size:1.8rem;color:#a16207">
+                @ViewBag.AvgRevPerUser.ToString("0.00")€
+            </div>
+            <div class="text-muted" style="font-size:.75rem">Avg Revenue Per User</div>
+        </div>
+    </div>
+    <div class="col-sm-6 col-xl-3">
+        <div class="card stat-card p-4" style="border-top:3px solid #1d4ed8">
+            <div class="text-muted small mb-1">Conversão</div>
+            <div class="fw-bold" style="font-size:1.8rem;color:#1d4ed8">@ViewBag.ConversionRate%</div>
+            <div class="text-muted" style="font-size:.75rem">Free → Pagante</div>
+        </div>
+    </div>
+</div>
+
+<div class="row g-4 mb-4">
+    @* Gráfico *@
+    <div class="col-lg-8">
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-graph-up me-1"></i>Novos pagantes por mês (últimos 6 meses)
+            </h6>
+            <canvas id="revenueChart" height="160"></canvas>
+        </div>
+    </div>
+
+    @* Breakdown por plano *@
+    <div class="col-lg-4">
+        <div class="card table-card p-4">
+            <h6 class="fw-semibold mb-3">
+                <i class="bi bi-layers me-1"></i>Revenue por Plano
+            </h6>
+            <div class="mb-4">
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small" style="color:#6366f1">
+                        <i class="bi bi-circle-fill me-1" style="font-size:.5rem"></i>Pro (@ViewBag.ProCount users)
+                    </span>
+                    <span class="fw-semibold small">@ViewBag.ProRevenue.ToString("0")€/mês</span>
+                </div>
+                <div class="progress mb-3" style="height:8px;border-radius:4px">
+                    @{
+                        var totalMrr = (decimal)ViewBag.MRR;
+                        var proPct = totalMrr > 0 ? (int)((decimal)ViewBag.ProRevenue / totalMrr * 100) : 0;
+                        var bizPct = totalMrr > 0 ? (int)((decimal)ViewBag.BizRevenue / totalMrr * 100) : 0;
+                    }
+                    <div class="progress-bar" style="width:@proPct%;background:#6366f1"></div>
+                </div>
+                <div class="d-flex justify-content-between align-items-center mb-1">
+                    <span class="small text-success">
+                        <i class="bi bi-circle-fill me-1" style="font-size:.5rem"></i>Business (@ViewBag.BizCount users)
+                    </span>
+                    <span class="fw-semibold small">@ViewBag.BizRevenue.ToString("0")€/mês</span>
+                </div>
+                <div class="progress" style="height:8px;border-radius:4px">
+                    <div class="progress-bar bg-success" style="width:@bizPct%"></div>
+                </div>
+            </div>
+            <hr style="border-color:#e2e8f0">
+            <div class="d-flex flex-column gap-2">
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Free (sem revenue)</span>
+                    <span class="fw-semibold small">@ViewBag.FreeCount users</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Total utilizadores</span>
+                    <span class="fw-semibold small">@ViewBag.TotalUsers</span>
+                </div>
+                <div class="d-flex justify-content-between">
+                    <span class="text-muted small">Pagantes</span>
+                    <span class="fw-semibold small">@(ViewBag.ProCount + ViewBag.BizCount)</span>
+                </div>
+            </div>
+        </div>
+    </div>
+</div>
+
+@* Acções rápidas *@
+<div class="card table-card p-4">
+    <h6 class="fw-semibold mb-3">
+        <i class="bi bi-lightning me-1"></i>Acções de Revenue
+    </h6>
+    <div class="row g-3">
+        <div class="col-md-4">
+            <div class="p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0">
+                <div class="fw-semibold small mb-1">Utilizadores Free perto do limite</div>
+                <div class="text-muted small mb-3">Enviar nudge de upgrade para todos os free users com ≥80% das leads.</div>
+                <a href="/Admin/EmailCenter" class="btn btn-sm btn-accent w-100">
+                    <i class="bi bi-envelope me-1"></i>Email Center
+                </a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0">
+                <div class="fw-semibold small mb-1">Exportar relatório</div>
+                <div class="text-muted small mb-3">Download CSV com todos os utilizadores, planos e dados de subscrição.</div>
+                <a href="/Admin/ExportUsers" class="btn btn-sm btn-outline-secondary w-100">
+                    <i class="bi bi-download me-1"></i>Download CSV
+                </a>
+            </div>
+        </div>
+        <div class="col-md-4">
+            <div class="p-3 rounded-3" style="background:#f8fafc;border:1px solid #e2e8f0">
+                <div class="fw-semibold small mb-1">Gerir subscrições</div>
+                <div class="text-muted small mb-3">Ver todas as subscrições activas, canceladas e pagamentos em falta.</div>
+                <a href="/Admin/Subscriptions" class="btn btn-sm btn-outline-secondary w-100">
+                    <i class="bi bi-credit-card me-1"></i>Ver Subscrições
+                </a>
+            </div>
+        </div>
+    </div>
+</div>
+
+@section Scripts {
+    <script src="https://cdn.jsdelivr.net/npm/chart.js@4.4.0/dist/chart.umd.min.js"></script>
+    <script>
+        new Chart(document.getElementById('revenueChart'), {
+            type: 'bar',
+            data: {
+                labels: @Html.Raw(ViewBag.RevenueLabels),
+                datasets: [{
+                    label: 'Revenue (€)',
+                    data: @Html.Raw(ViewBag.RevenueData),
+                    backgroundColor: 'rgba(99,102,241,.75)',
+                    borderRadius: 6
+                }]
+            },
+            options: {
+                responsive: true,
+                scales: {
+                    y: { beginAtZero: true, grid: { color: '#f1f5f9' },
+                         ticks: { callback: v => v + '€' } },
+                    x: { grid: { display: false } }
+                },
+                plugins: { legend: { display: false } }
+            }
+        });
+    </script>
+}

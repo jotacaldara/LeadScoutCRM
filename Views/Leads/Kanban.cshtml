@@ -1,0 +1,507 @@
+﻿@model LeadScoutCRM.Models.ViewModels.KanbanViewModel
+@using LeadScoutCRM.Models.Entities
+@{
+    ViewData["Title"] = "Pipeline Kanban";
+
+    // Configuração visual de cada coluna: cor de destaque, fundo do header, ícone
+    var colConfig = new Dictionary<LeadStatus, (string Label, string Accent, string HeaderBg, string Icon)>
+    {
+        [LeadStatus.Novo] = ("Novo", "#1d4ed8", "#dbeafe", "bi-star-fill"),
+        [LeadStatus.MensagemEnviada] = ("Mensagem Enviada", "#a16207", "#fef9c3", "bi-chat-dots-fill"),
+        [LeadStatus.EmNegociacao] = ("Em Negociação", "#c2410c", "#ffedd5", "bi-arrow-left-right"),
+        [LeadStatus.ClienteFechado] = ("Cliente Fechado", "#15803d", "#dcfce7", "bi-trophy-fill"),
+        [LeadStatus.Rejeitado] = ("Rejeitado", "#b91c1c", "#fee2e2", "bi-x-circle-fill"),
+    };
+}
+
+<style>
+    /* ── Layout do board ── */
+    .kanban-wrapper {
+        overflow-x: auto;
+        padding-bottom: 1rem;
+        /* Deixa o board crescer para além do padding do #main */
+        margin: 0 -2rem;
+        padding: 0 2rem 1.5rem;
+    }
+
+    .kanban-board {
+        display: flex;
+        gap: 16px;
+        align-items: flex-start;
+        /* Largura mínima garante scroll horizontal quando as colunas não cabem */
+        min-width: max-content;
+    }
+
+    /* ── Coluna ── */
+    .kanban-col {
+        width: 272px;
+        flex-shrink: 0;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 14px;
+        display: flex;
+        flex-direction: column;
+        max-height: calc(100vh - 180px);
+    }
+
+    .kanban-col-header {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        padding: 12px 14px 11px;
+        border-radius: 14px 14px 0 0;
+        border-bottom: 1px solid #e2e8f0;
+        flex-shrink: 0;
+    }
+
+    .col-dot {
+        width: 10px;
+        height: 10px;
+        border-radius: 50%;
+        flex-shrink: 0;
+    }
+
+    .col-title {
+        font-weight: 600;
+        font-size: .8rem;
+        color: #1e293b;
+        flex: 1;
+    }
+
+    .col-count {
+        font-size: .7rem;
+        font-weight: 700;
+        min-width: 22px;
+        height: 22px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        border-radius: 20px;
+        padding: 0 7px;
+    }
+
+    /* ── Zona de cards (scrollável) ── */
+    .kanban-cards {
+        padding: 10px 10px 12px;
+        overflow-y: auto;
+        flex: 1;
+        display: flex;
+        flex-direction: column;
+        gap: 8px;
+        min-height: 80px;
+        transition: background .15s;
+    }
+
+    /* Highlight ao arrastar sobre a coluna */
+    .kanban-cards.drag-over {
+        background: #ede9fe;
+        border-radius: 0 0 14px 14px;
+        outline: 2px dashed #6366f1;
+        outline-offset: -4px;
+    }
+
+    /* ── Card de lead ── */
+    .kanban-card {
+        background: #fff;
+        border: 1px solid #e2e8f0;
+        border-radius: 10px;
+        padding: 12px 13px;
+        cursor: grab;
+        transition: box-shadow .15s, transform .1s, opacity .15s;
+        user-select: none;
+        position: relative;
+    }
+
+    .kanban-card:hover {
+        box-shadow: 0 4px 14px rgba(0,0,0,.09);
+        transform: translateY(-1px);
+    }
+
+    .kanban-card:active {
+        cursor: grabbing;
+    }
+
+    /* Card fantasma durante o drag */
+    .kanban-card.dragging {
+        opacity: .35;
+        transform: rotate(1.5deg) scale(.97);
+    }
+
+    .card-business {
+        font-weight: 600;
+        font-size: .83rem;
+        color: #1e293b;
+        margin-bottom: 6px;
+        line-height: 1.3;
+    }
+
+    .card-meta {
+        display: flex;
+        flex-direction: column;
+        gap: 3px;
+        margin-bottom: 10px;
+    }
+
+    .card-meta-row {
+        display: flex;
+        align-items: center;
+        gap: 5px;
+        font-size: .72rem;
+        color: #64748b;
+    }
+
+    .card-meta-row i {
+        width: 12px;
+        flex-shrink: 0;
+        font-size: .7rem;
+    }
+
+    .card-meta-row a {
+        color: #6366f1;
+        text-decoration: none;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        max-width: 180px;
+    }
+
+    .card-meta-row a:hover {
+        text-decoration: underline;
+    }
+
+    .card-footer-row {
+        display: flex;
+        align-items: center;
+        justify-content: space-between;
+        margin-top: 8px;
+        padding-top: 8px;
+        border-top: 1px solid #f1f5f9;
+    }
+
+    .card-niche {
+        font-size: .68rem;
+        background: #f1f5f9;
+        color: #475569;
+        padding: 2px 8px;
+        border-radius: 20px;
+        font-weight: 500;
+        max-width: 130px;
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+    }
+
+    .card-date {
+        font-size: .68rem;
+        color: #94a3b8;
+    }
+
+    .card-detail-btn {
+        position: absolute;
+        top: 10px;
+        right: 10px;
+        width: 24px;
+        height: 24px;
+        background: #f8fafc;
+        border: 1px solid #e2e8f0;
+        border-radius: 6px;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        font-size: .7rem;
+        color: #64748b;
+        text-decoration: none;
+        opacity: 0;
+        transition: opacity .15s;
+    }
+
+    .kanban-card:hover .card-detail-btn {
+        opacity: 1;
+    }
+
+    /* ── Estado vazio da coluna ── */
+    .kanban-empty {
+        text-align: center;
+        padding: 24px 12px;
+        color: #94a3b8;
+        font-size: .75rem;
+        line-height: 1.6;
+    }
+
+    .kanban-empty i {
+        display: block;
+        font-size: 1.5rem;
+        margin-bottom: 6px;
+        opacity: .4;
+    }
+
+    /* ── Contador a actualizar ── */
+    .count-updating {
+        transition: transform .2s;
+        transform: scale(1.3);
+    }
+</style>
+
+<!-- ── Header da página ── -->
+<div class="d-flex justify-content-between align-items-center mb-4">
+    <div>
+        <h4 class="fw-bold mb-0">Pipeline Kanban</h4>
+        <span class="text-muted" style="font-size:.875rem">
+            @Model.TotalLeads lead@(Model.TotalLeads != 1 ? "s" : "") no funil
+        </span>
+    </div>
+    <div class="d-flex gap-2">
+        <a href="/Leads" class="btn btn-sm btn-outline-secondary">
+            <i class="bi bi-list-ul me-1"></i>Vista de Lista
+        </a>
+        <a href="/Leads/Search" class="btn btn-sm btn-accent px-3">
+            <i class="bi bi-plus-lg me-1"></i>Nova Pesquisa
+        </a>
+    </div>
+</div>
+
+<!-- ── Board ── -->
+<div class="kanban-wrapper">
+    <div class="kanban-board" id="kanbanBoard">
+
+        @foreach (var status in Enum.GetValues<LeadStatus>())
+        {
+            var cfg = colConfig[status];
+            var leads = Model.Columns[status];
+            var count = leads.Count;
+
+            <div class="kanban-col" data-col-status="@status">
+
+                <!-- Header da coluna -->
+                <div class="kanban-col-header" style="background:@cfg.HeaderBg">
+                    <span class="col-dot" style="background:@cfg.Accent"></span>
+                    <span class="col-title">@cfg.Label</span>
+                    <span class="col-count"
+                          style="background:@cfg.Accent;color:#fff"
+                          id="count-@status">@count</span>
+                </div>
+
+                <!-- Zona de drop + lista de cards -->
+                <div class="kanban-cards"
+                     id="cards-@status"
+                     data-status="@status"
+                     ondragover="handleDragOver(event)"
+                     ondragleave="handleDragLeave(event)"
+                     ondrop="handleDrop(event)">
+
+                    @if (!leads.Any())
+                    {
+                        <div class="kanban-empty" id="empty-@status">
+                            <i class="bi @cfg.Icon"></i>
+                            Nenhuma lead aqui.<br />Arrasta um card para esta coluna.
+                        </div>
+                    }
+
+                    @foreach (var lead in leads)
+                    {
+                        <div class="kanban-card"
+                             draggable="true"
+                             id="card-@lead.Id"
+                             data-lead-id="@lead.Id"
+                             data-status="@status"
+                             ondragstart="handleDragStart(event)"
+                             ondragend="handleDragEnd(event)">
+
+                            <!-- Botão de detalhe (aparece no hover) -->
+                            <a href="/Leads/Detail/@lead.Id"
+                               class="card-detail-btn"
+                               title="Ver detalhe"
+                               onclick="event.stopPropagation()">
+                                <i class="bi bi-arrow-up-right"></i>
+                            </a>
+
+                            <div class="card-business">@lead.BusinessName</div>
+
+                            <div class="card-meta">
+                                @if (!string.IsNullOrEmpty(lead.PhoneNumber))
+                                {
+                                    <div class="card-meta-row">
+                                        <i class="bi bi-telephone"></i>
+                                        <a href="tel:@lead.PhoneNumber" onclick="event.stopPropagation()">
+                                            @lead.PhoneNumber
+                                        </a>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(lead.Website))
+                                {
+                                    var displayUrl = lead.Website
+                                    .Replace("https://", "")
+                                    .Replace("http://", "")
+                                    .TrimEnd('/');
+                                    <div class="card-meta-row">
+                                        <i class="bi bi-globe"></i>
+                                        <a href="@lead.Website" target="_blank"
+                                           onclick="event.stopPropagation()">
+                                            @displayUrl
+                                        </a>
+                                    </div>
+                                }
+                                @if (!string.IsNullOrEmpty(lead.City))
+                                {
+                                    <div class="card-meta-row">
+                                        <i class="bi bi-geo-alt"></i>
+                                        <span>@lead.City</span>
+                                    </div>
+                                }
+                            </div>
+
+                            <div class="card-footer-row">
+                                <span class="card-niche">
+                                    @(lead.Niche ?? "—")
+                                </span>
+                                <span class="card-date">
+                                    @lead.CreatedAt.ToString("dd/MM/yy")
+                                </span>
+                            </div>
+
+                        </div>
+                    }
+                </div>
+            </div>
+        }
+
+    </div>
+</div>
+
+@section Scripts {
+    <script>
+        // ── Estado global do drag ──────────────────────────────────────────────────
+        let draggedCard   = null;   // elemento DOM a ser arrastado
+        let sourceZone    = null;   // .kanban-cards de origem
+        let sourceStatus  = null;   // string do status original
+
+        // ── Drag Start ────────────────────────────────────────────────────────────
+        function handleDragStart(e) {
+            draggedCard  = e.currentTarget;
+            sourceZone   = draggedCard.closest('.kanban-cards');
+            sourceStatus = draggedCard.dataset.status;
+
+            // Pequeno delay para o browser usar o card original como "fantasma"
+            requestAnimationFrame(() => draggedCard.classList.add('dragging'));
+
+            e.dataTransfer.effectAllowed = 'move';
+            e.dataTransfer.setData('text/plain', draggedCard.dataset.leadId);
+        }
+
+        // ── Drag End ──────────────────────────────────────────────────────────────
+        function handleDragEnd(e) {
+            draggedCard?.classList.remove('dragging');
+            // Remove highlights de todas as zonas
+            document.querySelectorAll('.kanban-cards').forEach(z => z.classList.remove('drag-over'));
+        }
+
+        // ── Drag Over (na zona de drop) ───────────────────────────────────────────
+        function handleDragOver(e) {
+            e.preventDefault();
+            e.dataTransfer.dropEffect = 'move';
+            const zone = e.currentTarget;
+            if (zone !== sourceZone) {
+                zone.classList.add('drag-over');
+            }
+        }
+
+        // ── Drag Leave ────────────────────────────────────────────────────────────
+        function handleDragLeave(e) {
+            // Só remove o highlight se o cursor saiu da zona para fora dela
+            // (evita flicker ao passar por cima dos cards filhos)
+            const zone = e.currentTarget;
+            if (!zone.contains(e.relatedTarget)) {
+                zone.classList.remove('drag-over');
+            }
+        }
+
+        // ── Drop ──────────────────────────────────────────────────────────────────
+        async function handleDrop(e) {
+            e.preventDefault();
+            const targetZone  = e.currentTarget;
+            targetZone.classList.remove('drag-over');
+
+            const newStatus = targetZone.dataset.status;
+
+            // Ignorar drops na mesma coluna
+            if (newStatus === sourceStatus) return;
+
+            const leadId = draggedCard.dataset.leadId;
+
+            // 1. Mover o card no DOM imediatamente (optimistic update)
+            moveCardDOM(targetZone, newStatus);
+
+            // 2. Chamar a API existente
+            try {
+                const res = await fetch(`/api/leads/${leadId}/status`, {
+                    method:  'PATCH',
+                    headers: { 'Content-Type': 'application/json' },
+                    body:    JSON.stringify({ status: newStatus })
+                });
+
+                if (!res.ok) throw new Error(await res.text());
+
+                const data = await res.json();
+                showToast(`✓ Movido para "${statusLabel(newStatus)}"`, 'success');
+
+            } catch (err) {
+                // Reverter o DOM se a API falhar
+                console.error('Erro ao actualizar status:', err);
+                moveCardDOM(sourceZone, sourceStatus);   // volta à origem
+                showToast('Erro ao mover lead. Tenta novamente.', 'error');
+            }
+        }
+
+        // ── Mover card no DOM e actualizar contadores ─────────────────────────────
+        function moveCardDOM(targetZone, newStatus) {
+            // Remove mensagem "vazio" do destino se existir
+            const emptyMsg = targetZone.querySelector('[id^="empty-"]');
+            emptyMsg?.remove();
+
+            // Mover o card para o topo da coluna destino
+            targetZone.prepend(draggedCard);
+            draggedCard.dataset.status = newStatus;
+
+            // Adicionar mensagem vazia na origem se ficou sem cards
+            const remainingCards = sourceZone.querySelectorAll('.kanban-card');
+            if (remainingCards.length === 0 && !sourceZone.querySelector('[id^="empty-"]')) {
+                const prevStatus = sourceStatus;
+                sourceZone.innerHTML = `
+                    <div class="kanban-empty" id="empty-${prevStatus}">
+                        <i class="bi bi-inbox"></i>
+                        Nenhuma lead aqui.<br/>Arrasta um card para esta coluna.
+                    </div>`;
+            }
+
+            // Actualizar contadores
+            updateCount(sourceStatus, -1);
+            updateCount(newStatus, +1);
+
+            // Actualizar referência da origem para eventual reversão
+            sourceZone   = targetZone;
+            sourceStatus = newStatus;
+        }
+
+        // ── Actualiza o badge de contagem com micro-animação ─────────────────────
+        function updateCount(status, delta) {
+            const badge = document.getElementById(`count-${status}`);
+            if (!badge) return;
+            const current = parseInt(badge.textContent, 10) || 0;
+            badge.textContent = Math.max(0, current + delta);
+            badge.classList.add('count-updating');
+            setTimeout(() => badge.classList.remove('count-updating'), 220);
+        }
+
+        // ── Labels legíveis dos status (para o toast) ─────────────────────────────
+        function statusLabel(status) {
+            const map = {
+                'Novo':            'Novo',
+                'MensagemEnviada': 'Mensagem Enviada',
+                'EmNegociacao':    'Em Negociação',
+                'ClienteFechado':  'Cliente Fechado',
+                'Rejeitado':       'Rejeitado'
+            };
+            return map[status] || status;
+        }
+    </script>
+}
