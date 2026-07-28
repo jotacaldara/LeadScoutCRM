@@ -291,7 +291,7 @@ Algumas decisões técnicas relevantes, documentadas para referência futura:
 
 ## 👤 Autor
 
-Desenvolvido por **Jota**, no âmbito da PAP do curso TGPSI — INETE, 2026.
+Desenvolvido por João Caldara, no âmbito da PAP do curso TGPSI — INETE, 2026.
 
 ---
 
