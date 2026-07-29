@@ -15,6 +15,8 @@ public class SearchViewModel
     public string Location { get; set; } = string.Empty; 
 
     public List<GooglePlaceResult> Results { get; set; } = new();
+
+    public string? NextPageToken { get; set; }
 }
 
 // Representa UM resultado do Google Places
@@ -27,4 +29,10 @@ public class GooglePlaceResult
     public string? Website { get; set; }
     public string? Address { get; set; }
     public double? Rating { get; set; }
+}
+
+public class PlacesSearchResult
+{
+    public List<GooglePlaceResult> Results { get; set; } = new();
+    public string? NextPageToken { get; set; }
 }

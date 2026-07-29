@@ -95,6 +95,33 @@ public class LeadsApiController : ControllerBase
         return lead == null ? NotFound() : Ok(lead);
     }
 
+    // Actualiza os dados da lead — verifica ownership (mesmo padrão dos outros endpoints)
+    [HttpPut("{id}")]
+    public async Task<IActionResult> UpdateLead(int id, [FromBody] UpdateLeadRequest request)
+    {
+        var lead = await _db.Leads
+            .FirstOrDefaultAsync(l => l.Id == id && l.UserId == CurrentUserId);
+
+        if (lead == null)
+            return NotFound();
+
+        if (string.IsNullOrWhiteSpace(request.BusinessName))
+            return BadRequest(new { message = "O nome da empresa é obrigatório." });
+
+        lead.BusinessName = request.BusinessName.Trim();
+        lead.PhoneNumber = request.PhoneNumber;
+        lead.Website = request.Website;
+        lead.Address = request.Address;
+        lead.Niche = request.Niche;
+        lead.City = request.City;
+
+        await _db.SaveChangesAsync();
+
+        _logger.LogInformation("Lead {Id} editada por {UserId}", id, CurrentUserId);
+
+        return Ok(new { message = "Lead actualizada com sucesso.", businessName = lead.BusinessName });
+    }
+
     // Actualiza o status — CORRIGIDO: verifica ownership
     [HttpPatch("{id}/status")]
     public async Task<IActionResult> UpdateStatus(int id, [FromBody] UpdateStatusRequest request)

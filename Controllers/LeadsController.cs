@@ -27,12 +27,17 @@ public class LeadsController : Controller
         _logger = logger;
     }
 
-    // Lista todas as leads do utilizador autenticado
+    // Lista todas as leads do utilizador autenticado (com paginação)
+    private const int PageSize = 12;
+
     public async Task<IActionResult> Index(
         string? statusFilter,
         string? searchTerm,
-        string? niche)
+        string? niche,
+        int page = 1)
     {
+        if (page < 1) page = 1;
+
         var query = _db.Leads
             .Where(l => l.UserId == CurrentUserId)
             .Include(l => l.Notes)
@@ -56,14 +61,25 @@ public class LeadsController : Controller
             query = query.Where(l => l.Niche == niche);
         }
 
+        // Total de resultados DEPOIS de aplicar os filtros — é este número que pagina
+        var filteredCount = await query.CountAsync();
+        var totalPages = (int)Math.Ceiling(filteredCount / (double)PageSize);
+        if (totalPages < 1) totalPages = 1;
+        if (page > totalPages) page = totalPages;
+
         var leads = await query
             .OrderByDescending(l => l.CreatedAt)
+            .Skip((page - 1) * PageSize)
+            .Take(PageSize)
             .ToListAsync();
 
-        // CORRIGIDO: todos os ViewBag filtrados por utilizador
         ViewBag.StatusFilter = statusFilter;
         ViewBag.SearchTerm = searchTerm;
         ViewBag.NicheFilter = niche;
+
+        ViewBag.CurrentPage = page;
+        ViewBag.TotalPages = totalPages;
+        ViewBag.FilteredCount = filteredCount;
 
         ViewBag.TotalLeads = await _db.Leads
             .CountAsync(l => l.UserId == CurrentUserId);
@@ -71,7 +87,6 @@ public class LeadsController : Controller
         ViewBag.LeadsFechadas = await _db.Leads
             .CountAsync(l => l.UserId == CurrentUserId && l.Status == LeadStatus.ClienteFechado);
 
-        // Nichos distintos apenas do utilizador actual
         ViewBag.Niches = await _db.Leads
             .Where(l => l.UserId == CurrentUserId && l.Niche != null)
             .Select(l => l.Niche!)
@@ -98,8 +113,9 @@ public class LeadsController : Controller
 
         try
         {
-            model.Results = await _googlePlaces
-                .SearchPlacesAsync(model.Niche, model.Location);
+            var result = await _googlePlaces.SearchPlacesAsync(model.Niche, model.Location);
+            model.Results = result.Results;
+            model.NextPageToken = result.NextPageToken;
 
             if (!model.Results.Any())
                 TempData["Info"] = "Nenhum resultado encontrado. Tenta outro nicho ou localização.";
@@ -111,6 +127,30 @@ public class LeadsController : Controller
         }
 
         return View(model);
+    }
+
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> SearchMore(string niche, string location, string pageToken)
+    {
+        if (string.IsNullOrEmpty(pageToken))
+            return BadRequest(new { message = "Token de paginação em falta." });
+
+        try
+        {
+            var result = await _googlePlaces.SearchPlacesAsync(niche, location, pageToken);
+
+            return Json(new
+            {
+                results = result.Results,
+                nextPageToken = result.NextPageToken
+            });
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao carregar mais resultados do Google Places");
+            return StatusCode(500, new { message = "Erro ao contactar o Google Places." });
+        }
     }
 
     // Página de detalhe de uma lead (com notas)

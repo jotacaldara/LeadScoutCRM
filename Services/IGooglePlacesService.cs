@@ -4,6 +4,5 @@ namespace LeadScoutCRM.Services;
 
 public interface IGooglePlacesService
 {
-    // Recebe nicho + localização, devolve lista de resultados
-    Task<List<GooglePlaceResult>> SearchPlacesAsync(string niche, string location);
+    Task<PlacesSearchResult> SearchPlacesAsync(string niche, string location, string? pageToken = null);
 }

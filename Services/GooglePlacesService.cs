@@ -21,57 +21,80 @@ public class GooglePlacesService : IGooglePlacesService
         _logger = logger;
     }
 
-    public async Task<List<GooglePlaceResult>> SearchPlacesAsync(
-        string niche, string location)
+    public async Task<PlacesSearchResult> SearchPlacesAsync(
+     string niche, string location, string? pageToken = null)
     {
-        var results = new List<GooglePlaceResult>();
+        var result = new PlacesSearchResult();
 
         try
         {
-            var searchResults = await TextSearchAsync(niche, location);
+            var placesResponse = await TextSearchAsync(niche, location, pageToken);
 
-            //limita a 10 resultados para não gastar tanto da API
-            var tasks = searchResults
-                .Take(10)
+            var tasks = placesResponse.Results
                 .Select(place => EnrichWithDetailsAsync(place));
 
             var enrichedResults = await Task.WhenAll(tasks);
-            results.AddRange(enrichedResults);
+            result.Results.AddRange(enrichedResults);
+            result.NextPageToken = placesResponse.NextPageToken;
         }
         catch (Exception ex)
         {
             _logger.LogError(ex, "Erro ao pesquisar no Google Places: {Niche} em {Location}",
                 niche, location);
-       
+
             throw;
         }
 
-        return results;
+        return result;
     }
 
-    private async Task<List<PlaceResult>> TextSearchAsync(
-        string niche, string location)
+
+    private async Task<GooglePlacesResponse> TextSearchAsync(
+    string niche, string location, string? pageToken)
     {
-        var query = Uri.EscapeDataString($"{niche} em {location}");
-        var url = $"{_options.BaseUrl}/textsearch/json" +
+        string url;
+
+        if (!string.IsNullOrEmpty(pageToken))
+        {
+            url = $"{_options.BaseUrl}/textsearch/json" +
+                  $"?pagetoken={pageToken}" +
+                  $"&key={_options.ApiKey}";
+        }
+        else
+        {
+            var query = Uri.EscapeDataString($"{niche} em {location}");
+            url = $"{_options.BaseUrl}/textsearch/json" +
                   $"?query={query}" +
                   $"&language=pt" +
                   $"&key={_options.ApiKey}";
+        }
 
-        var response = await _httpClient.GetAsync(url);
-        response.EnsureSuccessStatusCode(); 
+        GooglePlacesResponse? placesResponse = null;
 
-        var json = await response.Content.ReadAsStringAsync();
+        // O pagetoken do Google só fica válido alguns segundos depois da pesquisa
+        for (int attempt = 1; attempt <= 3; attempt++)
+        {
+            var response = await _httpClient.GetAsync(url);
+            response.EnsureSuccessStatusCode();
+            var json = await response.Content.ReadAsStringAsync();
+            placesResponse = JsonSerializer.Deserialize<GooglePlacesResponse>(json);
 
-        var placesResponse = JsonSerializer.Deserialize<GooglePlacesResponse>(json);
+            var needsRetry = !string.IsNullOrEmpty(pageToken) &&
+                              placesResponse?.Status == "INVALID_REQUEST";
+
+            if (!needsRetry) break;
+
+            _logger.LogInformation(
+                "Pagetoken ainda não válido (tentativa {Attempt}/3), a aguardar...", attempt);
+            await Task.Delay(2000 * attempt); // 2s, depois 4s
+        }
 
         if (placesResponse?.Status != "OK" && placesResponse?.Status != "ZERO_RESULTS")
         {
-            _logger.LogWarning("Google Places API devolveu status: {Status}",
-                placesResponse?.Status);
+            _logger.LogWarning("Google Places API devolveu status: {Status}", placesResponse?.Status);
         }
 
-        return placesResponse?.Results ?? new List<PlaceResult>();
+        return placesResponse ?? new GooglePlacesResponse();
     }
 
     private async Task<GooglePlaceResult> EnrichWithDetailsAsync(PlaceResult place)

@@ -134,6 +134,18 @@
                 </tbody>
             </table>
         </div>
+        @if (!string.IsNullOrEmpty(Model.NextPageToken))
+        {
+            <div class="card-footer bg-white text-center py-3">
+                <button class="btn btn-outline-accent" id="loadMoreBtn"
+                        data-niche="@Model.Niche"
+                        data-location="@Model.Location"
+                        data-token="@Model.NextPageToken"
+                        onclick="loadMoreResults(this)">
+                    <i class="bi bi-arrow-down-circle me-1"></i>Carregar mais resultados
+                </button>
+            </div>
+        }
     </div>
 }
 else if (TempData["Info"] != null)
@@ -169,12 +181,10 @@ else if (TempData["Info"] != null)
                 const data = await res.json();
 
                 if (res.ok) {
-                    // Sucesso: transforma o botão em "Guardado"
                     btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Guardado';
                     btn.classList.replace('btn-accent', 'btn-success');
                     showToast(data.message, 'success');
                 } else if (res.status === 409) {
-                    // Conflito: já existe
                     btn.innerHTML = '<i class="bi bi-check-lg me-1"></i>Já no CRM';
                     btn.classList.replace('btn-accent', 'btn-secondary');
                     showToast(data.message, 'info');
@@ -188,6 +198,87 @@ else if (TempData["Info"] != null)
                 btn.innerHTML = '<i class="bi bi-plus-lg me-1"></i>Guardar';
                 showToast('Erro de rede.', 'error');
             }
+        }
+
+        async function loadMoreResults(btn) {
+            const niche = btn.dataset.niche;
+            const location = btn.dataset.location;
+            const pageToken = btn.dataset.token;
+            const token = document.querySelector('input[name="__RequestVerificationToken"]').value;
+
+            btn.disabled = true;
+            const originalHtml = btn.innerHTML;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>A carregar...';
+
+            try {
+                const body = new URLSearchParams({
+                    niche, location, pageToken,
+                    __RequestVerificationToken: token
+                });
+
+                const res = await fetch('/Leads/SearchMore', {
+                    method: 'POST',
+                    headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
+                    body
+                });
+
+                if (!res.ok) throw new Error('Erro ao carregar mais resultados.');
+
+                const data = await res.json();
+                const tbody = document.querySelector('table tbody');
+
+                data.results.forEach(place => {
+                    tbody.insertAdjacentHTML('beforeend', buildResultRow(place, niche, location));
+                });
+
+                if (data.nextPageToken) {
+                    btn.dataset.token = data.nextPageToken;
+                    btn.disabled = false;
+                    btn.innerHTML = originalHtml;
+                } else {
+                    btn.remove();
+                    showToast('Chegaste ao fim dos resultados.', 'info');
+                }
+            } catch (err) {
+                btn.disabled = false;
+                btn.innerHTML = originalHtml;
+                showToast('Erro ao carregar mais resultados.', 'error');
+            }
+        }
+
+        function buildResultRow(place, niche, location) {
+            const phone = place.phoneNumber
+                ? `<a href="tel:${place.phoneNumber}" class="text-decoration-none"><i class="bi bi-telephone me-1"></i>${place.phoneNumber}</a>`
+                : '<span class="text-muted">—</span>';
+
+            const website = place.website
+                ? `<a href="${place.website}" target="_blank" class="text-decoration-none text-truncate d-block" style="max-width:160px"><i class="bi bi-globe me-1"></i>${place.website.replace('https://', '').replace('http://', '')}</a>`
+                : '<span class="text-muted">—</span>';
+
+            const rating = place.rating
+                ? `<span class="badge bg-warning text-dark"><i class="bi bi-star-fill me-1"></i>${place.rating.toFixed(1)}</span>`
+                : '<span class="text-muted">—</span>';
+
+            return `
+                <tr id="row-${place.placeId}">
+                    <td class="fw-medium">${place.businessName}</td>
+                    <td>${phone}</td>
+                    <td>${website}</td>
+                    <td style="max-width:200px"><span class="text-muted small">${place.address ?? ''}</span></td>
+                    <td>${rating}</td>
+                    <td>
+                        <button class="btn btn-sm btn-accent" onclick="saveLead(this)"
+                                data-place-id="${place.placeId}"
+                                data-name="${place.businessName}"
+                                data-phone="${place.phoneNumber ?? ''}"
+                                data-website="${place.website ?? ''}"
+                                data-address="${place.address ?? ''}"
+                                data-niche="${niche}"
+                                data-city="${location}">
+                            <i class="bi bi-plus-lg me-1"></i>Guardar
+                        </button>
+                    </td>
+                </tr>`;
         }
     </script>
 }
