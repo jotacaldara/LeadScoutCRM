@@ -17,7 +17,7 @@ public class AnalyticsController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // CORRIGIDO: filtrar apenas leads do utilizador autenticado
+        // filtrar apenas leads do utilizador autenticado
         var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
         var leads = await _db.Leads
             .Where(l => l.UserId == userId)

@@ -57,7 +57,7 @@ public class GooglePlacesService : IGooglePlacesService
         if (!string.IsNullOrEmpty(pageToken))
         {
             url = $"{_options.BaseUrl}/textsearch/json" +
-                  $"?pagetoken={pageToken}" +
+                  $"?pagetoken={Uri.EscapeDataString(pageToken)}" + 
                   $"&key={_options.ApiKey}";
         }
         else
