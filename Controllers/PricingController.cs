@@ -13,7 +13,7 @@ public class PricingController : Controller
         _userManager = userManager;
     }
 
-    public async Task<IActionResult> Index()
+    public async Task<IActionResult> Index(bool? upgradeRequired, string? requiredPlan)
     {
         ViewBag.Plans = PlanConfig.Plans;
         ViewBag.CurrentPlan = SubscriptionPlan.Free;
@@ -23,6 +23,9 @@ public class PricingController : Controller
             var user = await _userManager.GetUserAsync(User);
             ViewBag.CurrentPlan = user?.Plan ?? SubscriptionPlan.Free;
         }
+
+        ViewBag.UpgradeRequired = upgradeRequired == true;
+        ViewBag.RequiredPlan = requiredPlan;
 
         return View();
     }

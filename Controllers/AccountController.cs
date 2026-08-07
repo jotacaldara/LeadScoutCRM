@@ -27,10 +27,13 @@ public class AccountController : Controller
     }
 
     [HttpGet]
-    public IActionResult Register()
+    public IActionResult Register(string? plan)
     {
         if (User.Identity?.IsAuthenticated == true)
             return RedirectToAction("Index", "Home");
+
+        // a validação a sério acontece depois do registo. (pre seleecionar planos)
+        ViewBag.SelectedPlan = (plan == "Pro" || plan == "Business") ? plan : null;
 
         return View();
     }
@@ -39,6 +42,9 @@ public class AccountController : Controller
     [ValidateAntiForgeryToken]
     public async Task<IActionResult> Register(RegisterViewModel model)
     {
+        // Mantém o plano seleccionado visível na UI se o formulário voltar por erro
+        ViewBag.SelectedPlan = (model.Plan == "Pro" || model.Plan == "Business") ? model.Plan : null;
+
         if (!ModelState.IsValid)
             return View(model);
 
@@ -69,10 +75,16 @@ public class AccountController : Controller
         await _signInManager.SignInAsync(user, isPersistent: false);
 
         _logger.LogInformation("Novo utilizador registado: {Email}", user.Email);
+
+        // Se veio da landing page com um plano pago seleccionado, segue
+        // directo para o Stripe Checkout em vez do Dashboard.
+        if (model.Plan == "Pro" || model.Plan == "Business")
+            return RedirectToAction(nameof(UpgradeRedirect), new { plan = model.Plan });
+
         return RedirectToAction("Index", "Home");
     }
 
-    // ── Login ─────────────────────────────────────────────────────────────────
+  
 
     [HttpGet]
     public IActionResult Login(string? returnUrl = null)
@@ -120,7 +132,6 @@ public class AccountController : Controller
         return View(model);
     }
 
-    // ── Logout ────────────────────────────────────────────────────────────────
 
     [HttpPost]
     [ValidateAntiForgeryToken]
@@ -130,7 +141,7 @@ public class AccountController : Controller
         return RedirectToAction("Login");
     }
 
-    // ── Página de acesso negado ───────────────────────────────────────────────
+ 
 
     [HttpGet]
     public IActionResult AccessDenied()
@@ -138,7 +149,6 @@ public class AccountController : Controller
         return View();
     }
 
-    // ── Definições da conta ───────────────────────────────────────────────────
 
     [Authorize]
     [HttpGet]
@@ -157,7 +167,6 @@ public class AccountController : Controller
         return View();
     }
 
-    // ── Upgrade de plano (redireciona para Stripe Checkout) ───────────────────
 
     [Authorize]
     [HttpPost]
@@ -190,6 +199,38 @@ public class AccountController : Controller
         }
     }
 
+    //direto da landing vem pro checkout
+
+    [Authorize]
+    [HttpGet]
+    public async Task<IActionResult> UpgradeRedirect(string plan)
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return RedirectToAction("Login");
+
+        if (!Enum.TryParse<SubscriptionPlan>(plan, out var targetPlan) ||
+            targetPlan == SubscriptionPlan.Free)
+        {
+            return RedirectToAction("Index", "Home");
+        }
+
+        try
+        {
+            var baseUrl = $"{Request.Scheme}://{Request.Host}";
+            var checkoutUrl = await _subscriptionService
+                .CreateCheckoutSessionAsync(user.Id, targetPlan, baseUrl);
+
+            return Redirect(checkoutUrl);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogError(ex, "Erro ao criar sessão Stripe (pós-registo) para {Email}", user.Email);
+            TempData["Success"] = "Conta criada com sucesso! 🎉";
+            TempData["Error"] = "Não foi possível iniciar o pagamento automaticamente — podes fazer upgrade aqui quando quiseres.";
+            return RedirectToAction("Settings");
+        }
+    }
+
     // ── Portal de gestão Stripe (cancelar, actualizar cartão, etc.) ───────────
 
     [Authorize]
@@ -214,6 +255,58 @@ public class AccountController : Controller
             TempData["Error"] = "Erro ao abrir portal de subscrição.";
             return RedirectToAction("Settings");
         }
+    }
+
+    // ── Geração de chave API (plano Business) ──────────────────────────────────
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> GenerateApiKey()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return RedirectToAction("Login");
+
+        // Verificação no servidor — nunca confiar só na UI esconder o botão
+        if (!PlanConfig.Plans[user.Plan].HasApiAccess)
+        {
+            TempData["Error"] = "O acesso à API está disponível apenas no plano Business.";
+            return RedirectToAction("Settings");
+        }
+
+        var plainTextKey = ApiKeyHasher.GenerateKey();
+        user.ApiKeyHash = ApiKeyHasher.Hash(plainTextKey);
+        user.ApiKeyCreatedAt = DateTime.UtcNow;
+        user.ApiKeyLastUsedAt = null;
+
+        await _userManager.UpdateAsync(user);
+
+        _logger.LogInformation("Nova chave API gerada para {Email}", user.Email);
+
+        // Mostrada apenas uma vez — a partir daqui só o hash existe na BD
+        TempData["NewApiKey"] = plainTextKey;
+        TempData["Success"] = "Chave API gerada com sucesso. Copia-a agora — não voltará a ser mostrada.";
+        return RedirectToAction("Settings");
+    }
+
+    [Authorize]
+    [HttpPost]
+    [ValidateAntiForgeryToken]
+    public async Task<IActionResult> RevokeApiKey()
+    {
+        var user = await _userManager.GetUserAsync(User);
+        if (user == null) return RedirectToAction("Login");
+
+        user.ApiKeyHash = null;
+        user.ApiKeyCreatedAt = null;
+        user.ApiKeyLastUsedAt = null;
+
+        await _userManager.UpdateAsync(user);
+
+        _logger.LogWarning("Chave API revogada para {Email}", user.Email);
+
+        TempData["Success"] = "Chave API revogada. Qualquer integração que a use deixa de funcionar.";
+        return RedirectToAction("Settings");
     }
 
     // ── Callback após Checkout bem sucedido ───────────────────────────────────

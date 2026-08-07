@@ -12,111 +12,111 @@
     <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.0/dist/css/bootstrap.min.css" rel="stylesheet" />
     <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.0/font/bootstrap-icons.css" rel="stylesheet" />
     <style>
-        :root {
-            --accent: #6366f1;
-            --accent-hover: #4f46e5;
-        }
-
-        body {
-            background: linear-gradient(135deg, #f1f5f9 0%, #e8eaf6 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-family: 'Segoe UI', sans-serif;
-            padding: 2rem 1rem;
-        }
-
-        .auth-card {
-            background: #fff;
-            border-radius: 20px;
-            padding: 2.5rem;
-            width: 100%;
-            max-width: 460px;
-            box-shadow: 0 8px 40px rgba(99,102,241,.12);
-        }
-
-        .brand-logo {
-            width: 48px;
-            height: 48px;
-            background: #ede9fe;
-            border-radius: 14px;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            font-size: 1.4rem;
-            color: var(--accent);
-        }
-
-        .brand-name {
-            color: var(--accent);
-            font-weight: 700;
-            font-size: 1.1rem;
-        }
-
-        .form-control {
-            border: 1px solid #e2e8f0;
-            border-radius: 10px;
-            padding: .65rem 1rem;
-            font-size: .9rem;
-            transition: border-color .15s, box-shadow .15s;
-        }
-
-            .form-control:focus {
-                border-color: var(--accent);
-                box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+            :root {
+                --accent: #6366f1;
+                --accent-hover: #4f46e5;
             }
 
-        .input-group-text {
-            background: #f8fafc;
-            border: 1px solid #e2e8f0;
-            color: #94a3b8;
-        }
+            body {
+                background: linear-gradient(135deg, #f1f5f9 0%, #e8eaf6 100%);
+                min-height: 100vh;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-family: 'Segoe UI', sans-serif;
+                padding: 2rem 1rem;
+            }
 
-        .form-label {
-            font-size: .875rem;
-            font-weight: 500;
-            color: #374151;
-        }
+            .auth-card {
+                background: #fff;
+                border-radius: 20px;
+                padding: 2.5rem;
+                width: 100%;
+                max-width: 460px;
+                box-shadow: 0 8px 40px rgba(99,102,241,.12);
+            }
 
-        .btn-accent {
-            background: var(--accent);
-            color: #fff;
-            border: none;
-            border-radius: 10px;
-            padding: .75rem;
-            font-size: .95rem;
-            font-weight: 600;
-            transition: background .15s;
-        }
+            .brand-logo {
+                width: 48px;
+                height: 48px;
+                background: #ede9fe;
+                border-radius: 14px;
+                display: flex;
+                align-items: center;
+                justify-content: center;
+                font-size: 1.4rem;
+                color: var(--accent);
+            }
 
-            .btn-accent:hover {
-                background: var(--accent-hover);
+            .brand-name {
+                color: var(--accent);
+                font-weight: 700;
+                font-size: 1.1rem;
+            }
+
+            .form-control {
+                border: 1px solid #e2e8f0;
+                border-radius: 10px;
+                padding: .65rem 1rem;
+                font-size: .9rem;
+                transition: border-color .15s, box-shadow .15s;
+            }
+
+                .form-control:focus {
+                    border-color: var(--accent);
+                    box-shadow: 0 0 0 3px rgba(99,102,241,.15);
+                }
+
+            .input-group-text {
+                background: #f8fafc;
+                border: 1px solid #e2e8f0;
+                color: #94a3b8;
+            }
+
+            .form-label {
+                font-size: .875rem;
+                font-weight: 500;
+                color: #374151;
+            }
+
+            .btn-accent {
+                background: var(--accent);
                 color: #fff;
+                border: none;
+                border-radius: 10px;
+                padding: .75rem;
+                font-size: .95rem;
+                font-weight: 600;
+                transition: background .15s;
             }
 
-        .link-accent {
-            color: var(--accent);
-            text-decoration: none;
-            font-weight: 500;
-        }
+                .btn-accent:hover {
+                    background: var(--accent-hover);
+                    color: #fff;
+                }
 
-            .link-accent:hover {
-                text-decoration: underline;
+            .link-accent {
+                color: var(--accent);
+                text-decoration: none;
+                font-weight: 500;
             }
 
-        .plan-badge {
-            background: #ede9fe;
-            color: var(--accent);
-            border-radius: 8px;
-            padding: .65rem 1rem;
-            font-size: .8rem;
-            border: 1px dashed #c4b5fd;
-        }
+                .link-accent:hover {
+                    text-decoration: underline;
+                }
 
-        .divider {
-            border-color: #f1f5f9;
-        }
+            .plan-badge {
+                background: #ede9fe;
+                color: var(--accent);
+                border-radius: 8px;
+                padding: .65rem 1rem;
+                font-size: .8rem;
+                border: 1px dashed #c4b5fd;
+            }
+
+            .divider {
+                border-color: #f1f5f9;
+            }
     </style>
 </head>
 <body>
@@ -132,17 +132,37 @@
             <h5 class="fw-bold mb-1" style="color:#1e293b">Cria a tua conta</h5>
             <p class="text-muted mb-4" style="font-size:.875rem">Começa grátis. Sem cartão de crédito.</p>
 
-            <!-- O que inclui o plano Free -->
-            <div class="plan-badge d-flex align-items-center gap-2 mb-4">
-                <i class="bi bi-gift-fill"></i>
-                <span>Plano <strong>Free</strong>: 10 leads · Pipeline Kanban · Pesquisa Google Places</span>
-            </div>
+            @{
+                var selectedPlan = ViewBag.SelectedPlan as string;
+            }
+            @if (selectedPlan == "Pro")
+            {
+                <div class="plan-badge d-flex align-items-center gap-2 mb-4">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    <span>Plano <strong>Pro</strong> · 19€/mês: leads ilimitadas, Kanban, Export CSV — segues para o pagamento a seguir</span>
+                </div>
+            }
+            else if (selectedPlan == "Business")
+            {
+                <div class="plan-badge d-flex align-items-center gap-2 mb-4">
+                    <i class="bi bi-lightning-charge-fill"></i>
+                    <span>Plano <strong>Business</strong> · 49€/mês: tudo do Pro + Acesso API — segues para o pagamento a seguir</span>
+                </div>
+            }
+            else
+            {
+                <div class="plan-badge d-flex align-items-center gap-2 mb-4">
+                    <i class="bi bi-gift-fill"></i>
+                    <span>Plano <strong>Free</strong>: 10 leads · Pipeline Kanban · Pesquisa Google Places</span>
+                </div>
+            }
 
             <!-- Erros globais -->
             <div asp-validation-summary="ModelOnly" class="alert alert-danger small py-2 rounded-3 mb-3"></div>
 
             <form asp-action="Register" asp-controller="Account" method="post">
                 @Html.AntiForgeryToken()
+                <input type="hidden" asp-for="Plan" value="@selectedPlan" />
 
                 <!-- Nome -->
                 <div class="mb-3">

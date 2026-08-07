@@ -11,33 +11,26 @@ public class HomeController : Controller
 
     public async Task<IActionResult> Index()
     {
-        // Se utilizador autenticado, mostra apenas os seus dados
-        if (User.Identity?.IsAuthenticated == true)
+        if (User.Identity?.IsAuthenticated != true)
         {
-            var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+            return View("Landing");
+        }
 
-            ViewBag.TotalLeads = await _db.Leads
-                .CountAsync(l => l.UserId == userId);
-            ViewBag.LeadsFechadas = await _db.Leads
-                .CountAsync(l => l.UserId == userId && l.Status == LeadStatus.ClienteFechado);
-            ViewBag.EmNegociacao = await _db.Leads
-                .CountAsync(l => l.UserId == userId && l.Status == LeadStatus.EmNegociacao);
-            ViewBag.LeadsHoje = await _db.Leads
-                .CountAsync(l => l.UserId == userId && l.CreatedAt.Date == DateTime.UtcNow.Date);
-            ViewBag.RecentLeads = await _db.Leads
-                .Where(l => l.UserId == userId)
-                .OrderByDescending(l => l.CreatedAt)
-                .Take(5)
-                .ToListAsync();
-        }
-        else
-        {
-            ViewBag.TotalLeads = 0;
-            ViewBag.LeadsFechadas = 0;
-            ViewBag.EmNegociacao = 0;
-            ViewBag.LeadsHoje = 0;
-            ViewBag.RecentLeads = new List<Lead>();
-        }
+        var userId = User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+        ViewBag.TotalLeads = await _db.Leads
+            .CountAsync(l => l.UserId == userId);
+        ViewBag.LeadsFechadas = await _db.Leads
+            .CountAsync(l => l.UserId == userId && l.Status == LeadStatus.ClienteFechado);
+        ViewBag.EmNegociacao = await _db.Leads
+            .CountAsync(l => l.UserId == userId && l.Status == LeadStatus.EmNegociacao);
+        ViewBag.LeadsHoje = await _db.Leads
+            .CountAsync(l => l.UserId == userId && l.CreatedAt.Date == DateTime.UtcNow.Date);
+        ViewBag.RecentLeads = await _db.Leads
+            .Where(l => l.UserId == userId)
+            .OrderByDescending(l => l.CreatedAt)
+            .Take(5)
+            .ToListAsync();
 
         return View();
     }

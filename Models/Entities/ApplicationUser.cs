@@ -21,5 +21,10 @@ public class ApplicationUser : IdentityUser
     // Datas
     public DateTime? SubscriptionStartedAt { get; set; }
     public DateTime? SubscriptionEndsAt { get; set; }   // null = activa indefinidamente
+
+    // Acesso API (plano Business) — só o hash fica guardado, nunca a chave em claro
+    public string? ApiKeyHash { get; set; }
+    public DateTime? ApiKeyCreatedAt { get; set; }
+    public DateTime? ApiKeyLastUsedAt { get; set; }
     public DateTime CreatedAt { get; set; } = DateTime.UtcNow;
 }

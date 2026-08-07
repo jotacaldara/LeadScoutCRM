@@ -1,9 +1,13 @@
-﻿using LeadScoutCRM.Data;
+﻿using LeadScoutCRM.Auth;
+using LeadScoutCRM.Data;
 using LeadScoutCRM.Models.Entities;
 using LeadScoutCRM.Services;
 using LeadScoutCRM.Services.Models;
+using Microsoft.AspNetCore.Authentication;
+using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
+using Microsoft.OpenApi;
 using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -12,7 +16,21 @@ var builder = WebApplication.CreateBuilder(args);
 StripeConfiguration.ApiKey = builder.Configuration["Stripe:SecretKey"];
 
 builder.Services.AddEndpointsApiExplorer();
-builder.Services.AddSwaggerGen();
+builder.Services.AddSwaggerGen(options =>
+{
+    options.AddSecurityDefinition("ApiKey", new OpenApiSecurityScheme
+    {
+        Name = "X-Api-Key",
+        Type = SecuritySchemeType.ApiKey,
+        In = ParameterLocation.Header,
+        Description = "Chave API do plano Business. Formato: lsk_XXXXXXXXXXXXXXXXXXXX"
+    });
+
+    options.AddSecurityRequirement(document => new OpenApiSecurityRequirement
+    {
+        [new OpenApiSecuritySchemeReference("ApiKey", document)] = new List<string>()
+    });
+});
 builder.Services.AddControllersWithViews();
 
 // ── Base de dados ──
@@ -47,6 +65,18 @@ builder.Services.ConfigureApplicationCookie(options =>
     options.SlidingExpiration = true;
 });
 
+// ── Autenticação por API Key (plano Business) ──
+// Esquema adicional ao cookie do Identity — não interfere com o login normal.
+builder.Services.AddAuthentication()
+    .AddScheme<AuthenticationSchemeOptions, ApiKeyAuthenticationHandler>(
+        ApiKeyAuthenticationHandler.SchemeName, options => { });
+
+builder.Services.AddAuthorization(options =>
+{
+    options.AddPolicy("ApiAccess", policy =>
+        policy.RequireClaim("has_api_access", "true"));
+});
+
 // ── Serviços de negócio ──
 builder.Services.Configure<GooglePlacesOptions>(
     builder.Configuration.GetSection(GooglePlacesOptions.SectionName));
@@ -64,12 +94,12 @@ using (var scope = app.Services.CreateScope())
     await DbSeeder.SeedAsync(scope.ServiceProvider);
 }
 
-if (app.Environment.IsDevelopment())
-{
-    app.UseSwagger();
-    app.UseSwaggerUI();
-}
-else
+// Swagger fica acessível sempre (não só em Development) para permitir
+// demonstrar a API pública. Numa app 100% produção real, isto seria
+app.UseSwagger();
+app.UseSwaggerUI();
+
+if (!app.Environment.IsDevelopment())
 {
     app.UseExceptionHandler("/Home/Error");
     app.UseHsts();

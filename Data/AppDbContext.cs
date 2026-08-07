@@ -21,6 +21,11 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
             .IsUnique()
             .HasFilter("[GooglePlaceId] IS NOT NULL");
 
+        modelBuilder.Entity<ApplicationUser>()
+    .HasIndex(u => u.ApiKeyHash)
+    .IsUnique()
+    .HasFilter("[ApiKeyHash] IS NOT NULL"); 
+
         modelBuilder.Entity<Note>()
             .HasOne(n => n.Lead)
             .WithMany(l => l.Notes)

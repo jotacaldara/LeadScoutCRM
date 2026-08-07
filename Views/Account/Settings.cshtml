@@ -170,6 +170,139 @@
                 </small>
             }
         </div>
+        @if (user?.Plan == SubscriptionPlan.Business)
+        {
+            <div class="card table-card p-4 mt-4">
+                <h6 class="fw-semibold mb-3">
+                    <i class="bi bi-key-fill me-1" style="color:#6366f1"></i>Acesso API
+                    <span class="badge bg-light text-dark ms-1" style="font-size:.65rem">Business</span>
+                </h6>
+
+                @if (TempData["NewApiKey"] != null)
+                {
+                    <div class="alert alert-warning rounded-3 mb-3">
+                        <div class="fw-semibold small mb-2">
+                            <i class="bi bi-exclamation-triangle-fill me-1"></i>
+                            Copia a tua chave agora — não voltará a ser mostrada.
+                        </div>
+                        <div class="input-group">
+                            <input type="text" id="newApiKey" class="form-control font-monospace small"
+                                   value="@TempData["NewApiKey"]" readonly />
+                            <button class="btn btn-outline-secondary" type="button" onclick="copyApiKey()">
+                                <i class="bi bi-clipboard"></i>
+                            </button>
+                        </div>
+                    </div>
+                }
+
+                @if (!string.IsNullOrEmpty(user.ApiKeyHash))
+                {
+                    <dl class="row small mb-3">
+                        <dt class="col-5 text-muted">Estado</dt>
+                        <dd class="col-7">
+                            <span class="badge" style="background:#dcfce7;color:#15803d">
+                                <i class="bi bi-check-circle-fill me-1"></i>Ativa
+                            </span>
+                        </dd>
+                        <dt class="col-5 text-muted">Gerada em</dt>
+                        <dd class="col-7">@user.ApiKeyCreatedAt?.ToString("dd/MM/yyyy HH:mm")</dd>
+                        <dt class="col-5 text-muted">Último uso</dt>
+                        <dd class="col-7">
+                            @(user.ApiKeyLastUsedAt.HasValue
+                                ? user.ApiKeyLastUsedAt.Value.ToString("dd/MM/yyyy HH:mm")
+                                : "Nunca utilizada")
+                        </dd>
+                    </dl>
+                    <p class="text-muted small">
+                        Usa o cabeçalho <code>X-Api-Key</code> nos pedidos a
+                        <code>/api/v1/leads</code>. Documentação em
+                        <a href="/swagger" target="_blank">/swagger</a>.
+                    </p>
+                    <div class="d-flex gap-2">
+                        <form asp-controller="Account" asp-action="GenerateApiKey" method="post" class="m-0"
+                              onsubmit="return confirm('Gerar uma nova chave invalida a anterior. Continuar?')">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-secondary">
+                                <i class="bi bi-arrow-repeat me-1"></i>Gerar Nova
+                            </button>
+                        </form>
+                        <form asp-controller="Account" asp-action="RevokeApiKey" method="post" class="m-0"
+                              onsubmit="return confirm('Tens a certeza que queres revogar a chave API?')">
+                            @Html.AntiForgeryToken()
+                            <button type="submit" class="btn btn-sm btn-outline-danger">
+                                <i class="bi bi-x-circle me-1"></i>Revogar
+                            </button>
+                        </form>
+                    </div> 
+                    <hr style="border-color:#e2e8f0;margin:1.25rem 0">
+
+                    <h6 class="fw-semibold mb-3" style="font-size:.85rem">
+                        <i class="bi bi-lightning-charge me-1" style="color:#6366f1"></i>Testar a API
+                    </h6>
+                    <p class="text-muted small mb-3">
+                        Cola a tua chave e experimenta um pedido real — exatamente como uma
+                        integração externa (Zapier, script próprio, etc.) faria.
+                    </p>
+
+                    <div class="mb-2">
+                        <label class="form-label small text-muted mb-1">Chave API</label>
+                        <input type="text" id="apiTesterKey" class="form-control form-control-sm font-monospace"
+                               placeholder="Cola aqui a tua chave (lsk_...)" />
+                    </div>
+
+                    <div class="row g-2 mb-2">
+                        <div class="col-md-6">
+                            <label class="form-label small text-muted mb-1">Endpoint</label>
+                            <select id="apiTesterEndpoint" class="form-select form-select-sm" onchange="updateApiTesterFields()">
+                                <option value="list">GET /api/v1/leads — Listar leads</option>
+                                <option value="get">GET /api/v1/leads/{id} — Obter uma lead</option>
+                                <option value="status">PATCH /api/v1/leads/{id}/status — Atualizar status</option>
+                            </select>
+                        </div>
+                        <div class="col-md-3" id="apiTesterLeadIdGroup" style="display:none">
+                            <label class="form-label small text-muted mb-1">ID da Lead</label>
+                            <input type="number" id="apiTesterLeadId" class="form-control form-control-sm" placeholder="ex: 12" />
+                        </div>
+                        <div class="col-md-3" id="apiTesterStatusGroup" style="display:none">
+                            <label class="form-label small text-muted mb-1">Novo Status</label>
+                            <select id="apiTesterStatus" class="form-select form-select-sm">
+                                <option value="Novo">Novo</option>
+                                <option value="MensagemEnviada">Mensagem Enviada</option>
+                                <option value="EmNegociacao">Em Negociação</option>
+                                <option value="ClienteFechado">Cliente Fechado</option>
+                                <option value="Rejeitado">Rejeitado</option>
+                            </select>
+                        </div>
+                    </div>
+
+                    <button type="button" id="apiTesterRunBtn" class="btn btn-sm btn-accent mb-3" onclick="runApiTest()">
+                        <i class="bi bi-play-fill me-1"></i>Executar Pedido
+                    </button>
+
+                    <div class="d-flex align-items-center gap-2 mb-2">
+                        <span class="text-muted small">Resposta:</span>
+                        <span id="apiTesterStatusBadge" class="badge bg-secondary">—</span>
+                    </div>
+                    <pre id="apiTesterResult"
+                         class="border rounded p-3 mb-0 small"
+                         style="background:#0f172a;color:#a5f3c8;max-height:280px;overflow:auto;white-space:pre-wrap;word-break:break-word;font-family:'IBM Plex Mono',monospace">Os resultados do pedido aparecem aqui.</pre>
+
+                }
+                else
+                {
+                    <p class="text-muted small">
+                        Gera uma chave API para integrares o LeadScout CRM com outras
+                        ferramentas (Zapier, scripts próprios, etc.).
+                    </p>
+                    <form asp-controller="Account" asp-action="GenerateApiKey" method="post">
+                        @Html.AntiForgeryToken()
+                        <button type="submit" class="btn btn-accent btn-sm">
+                            <i class="bi bi-key me-1"></i>Gerar Chave API
+                        </button>
+                    </form>
+                }
+            </div>
+        }
 
     </div>
 
@@ -300,3 +433,100 @@
 
     </div>
 </div>
+
+@section Scripts {
+    <script>
+        function copyApiKey() {
+            const input = document.getElementById('newApiKey');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => showToast('Chave copiada!', 'success'));
+        }
+
+        function copyApiKey() {
+            const input = document.getElementById('newApiKey');
+            input.select();
+            navigator.clipboard.writeText(input.value).then(() => showToast('Chave copiada!', 'success'));
+        }
+
+        function updateApiTesterFields() {
+            const endpoint = document.getElementById('apiTesterEndpoint').value;
+            document.getElementById('apiTesterLeadIdGroup').style.display =
+                (endpoint === 'get' || endpoint === 'status') ? 'block' : 'none';
+            document.getElementById('apiTesterStatusGroup').style.display =
+                (endpoint === 'status') ? 'block' : 'none';
+        }
+
+        async function runApiTest() {
+            const btn = document.getElementById('apiTesterRunBtn');
+            const key = document.getElementById('apiTesterKey').value.trim();
+            const endpoint = document.getElementById('apiTesterEndpoint').value;
+            const leadIdField = document.getElementById('apiTesterLeadId');
+            const statusField = document.getElementById('apiTesterStatus');
+            const resultBox = document.getElementById('apiTesterResult');
+            const statusBadge = document.getElementById('apiTesterStatusBadge');
+
+            if (!key) {
+                showToast('Cola a tua chave API primeiro.', 'info');
+                return;
+            }
+
+            let url = '';
+            let method = 'GET';
+            let body = null;
+
+            if (endpoint === 'list') {
+                url = '/api/v1/leads?page=1&pageSize=5';
+            } else if (endpoint === 'get') {
+                if (!leadIdField.value) { showToast('Indica o ID da lead.', 'info'); return; }
+                url = `/api/v1/leads/${leadIdField.value}`;
+            } else if (endpoint === 'status') {
+                if (!leadIdField.value) { showToast('Indica o ID da lead.', 'info'); return; }
+                url = `/api/v1/leads/${leadIdField.value}/status`;
+                method = 'PATCH';
+                body = JSON.stringify({ status: statusField.value });
+            }
+
+            btn.disabled = true;
+            btn.innerHTML = '<span class="spinner-border spinner-border-sm me-1"></span>A executar...';
+            statusBadge.className = 'badge bg-secondary';
+            statusBadge.textContent = '...';
+            resultBox.textContent = 'A aguardar resposta...';
+
+            try {
+                const res = await fetch(url, {
+                    method,
+                    headers: {
+                        'X-Api-Key': key,
+                        ...(body ? { 'Content-Type': 'application/json' } : {})
+                    },
+                    body
+                });
+
+                const raw = await res.text();
+                let pretty;
+                try { pretty = JSON.stringify(JSON.parse(raw), null, 2); }
+                catch { pretty = raw || '(sem conteúdo)'; }
+
+                statusBadge.textContent = `${res.status} ${res.statusText}`;
+                statusBadge.className = 'badge ' + (res.ok ? 'bg-success' : 'bg-danger');
+                resultBox.textContent = pretty;
+            } catch (err) {
+                statusBadge.textContent = 'Erro de rede';
+                statusBadge.className = 'badge bg-danger';
+                resultBox.textContent = String(err);
+            } finally {
+                btn.disabled = false;
+                btn.innerHTML = '<i class="bi bi-play-fill me-1"></i>Executar Pedido';
+            }
+        }
+
+        document.addEventListener('DOMContentLoaded', () => {
+            const newKeyField = document.getElementById('newApiKey');
+            const testerKeyField = document.getElementById('apiTesterKey');
+            if (newKeyField && testerKeyField) {
+                testerKeyField.value = newKeyField.value;
+            }
+        });
+    </script>
+}
+}

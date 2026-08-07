@@ -56,8 +56,13 @@ public class GooglePlacesService : IGooglePlacesService
 
         if (!string.IsNullOrEmpty(pageToken))
         {
+            // Espera inicial ANTES da primeira tentativa — o token precisa de
+            // tempo para ficar válido no lado do Google, mesmo que cliques
+            // rapidamente a seguir à pesquisa aparecer no ecrã
+            await Task.Delay(3000);
+
             url = $"{_options.BaseUrl}/textsearch/json" +
-                  $"?pagetoken={Uri.EscapeDataString(pageToken)}" + 
+                  $"?pagetoken={Uri.EscapeDataString(pageToken)}" +
                   $"&key={_options.ApiKey}";
         }
         else
@@ -71,12 +76,15 @@ public class GooglePlacesService : IGooglePlacesService
 
         GooglePlacesResponse? placesResponse = null;
 
-        // O pagetoken do Google só fica válido alguns segundos depois da pesquisa
-        for (int attempt = 1; attempt <= 3; attempt++)
+        // Até 5 tentativas com espera crescente (3s, 3s, 4s, 5s, 5s ≈ 20s no total)
+        for (int attempt = 1; attempt <= 5; attempt++)
         {
             var response = await _httpClient.GetAsync(url);
             response.EnsureSuccessStatusCode();
             var json = await response.Content.ReadAsStringAsync();
+
+            _logger.LogWarning("DEBUG tentativa {Attempt} — resposta crua do Google: {Json}", attempt, json);
+
             placesResponse = JsonSerializer.Deserialize<GooglePlacesResponse>(json);
 
             var needsRetry = !string.IsNullOrEmpty(pageToken) &&
@@ -85,8 +93,10 @@ public class GooglePlacesService : IGooglePlacesService
             if (!needsRetry) break;
 
             _logger.LogInformation(
-                "Pagetoken ainda não válido (tentativa {Attempt}/3), a aguardar...", attempt);
-            await Task.Delay(2000 * attempt); // 2s, depois 4s
+                "Pagetoken ainda não válido (tentativa {Attempt}/5), a aguardar...", attempt);
+
+            var waitMs = attempt <= 2 ? 3000 : attempt <= 4 ? 4000 : 5000;
+            await Task.Delay(waitMs);
         }
 
         if (placesResponse?.Status != "OK" && placesResponse?.Status != "ZERO_RESULTS")

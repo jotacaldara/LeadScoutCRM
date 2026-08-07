@@ -16,9 +16,15 @@
             @ViewBag.TotalLeads lead@(ViewBag.TotalLeads != 1 ? "s" : "") no teu CRM
         </span>
     </div>
-    <a href="/Leads/Search" class="btn btn-accent px-4">
-        <i class="bi bi-plus-lg me-1"></i> Nova Pesquisa
-    </a>
+    <div class="d-flex gap-2">
+        <a href="@Url.Action("Export", "Leads", new { statusFilter, searchTerm, niche = nicheFilter })"
+           class="btn btn-outline-secondary px-3">
+            <i class="bi bi-download me-1"></i> Exportar CSV
+        </a>
+        <a href="/Leads/Search" class="btn btn-accent px-4">
+            <i class="bi bi-plus-lg me-1"></i> Nova Pesquisa
+        </a>
+    </div>
 </div>
 
 <!-- ── Filtros ── -->

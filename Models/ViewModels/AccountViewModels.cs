@@ -22,6 +22,10 @@ public class RegisterViewModel
     [DataType(DataType.Password)]
     [Display(Name = "Confirmar password")]
     public string ConfirmPassword { get; set; } = string.Empty;
+
+    // Plano escolhido na landing page (ex: "Pro", "Business").
+    // Opcional — null/inválido significa plano Free (comportamento por omissão).
+    public string? Plan { get; set; }
 }
 
 public class LoginViewModel

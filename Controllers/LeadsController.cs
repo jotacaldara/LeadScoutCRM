@@ -6,6 +6,9 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using System.Text;
+using LeadScoutCRM.Filters;
+
 
 namespace LeadScoutCRM.Controllers;
 
@@ -187,4 +190,80 @@ public class LeadsController : Controller
 
         return View(model);
     }
+
+    // Exporta as leads do utilizador para CSV — requer plano Pro ou superior
+    [SubscriptionRequired(SubscriptionPlan.Pro)]
+    public async Task<IActionResult> Export(string? statusFilter, string? searchTerm, string? niche)
+    {
+        var query = _db.Leads
+            .Where(l => l.UserId == CurrentUserId)
+            .AsQueryable();
+
+        if (!string.IsNullOrEmpty(statusFilter) &&
+            Enum.TryParse<LeadStatus>(statusFilter, out var status))
+        {
+            query = query.Where(l => l.Status == status);
+        }
+
+        if (!string.IsNullOrEmpty(searchTerm))
+        {
+            query = query.Where(l =>
+                l.BusinessName.Contains(searchTerm) ||
+                (l.City != null && l.City.Contains(searchTerm)));
+        }
+
+        if (!string.IsNullOrEmpty(niche))
+        {
+            query = query.Where(l => l.Niche == niche);
+        }
+
+        var leads = await query
+            .OrderByDescending(l => l.CreatedAt)
+            .ToListAsync();
+
+        var sb = new StringBuilder();
+        sb.AppendLine("Empresa,Telefone,Website,Morada,Nicho,Cidade,Status,Criado em,Último Contacto");
+
+        foreach (var lead in leads)
+        {
+            sb.AppendLine(string.Join(",",
+                CsvEscape(lead.BusinessName),
+                CsvEscape(lead.PhoneNumber),
+                CsvEscape(lead.Website),
+                CsvEscape(lead.Address),
+                CsvEscape(lead.Niche),
+                CsvEscape(lead.City),
+                CsvEscape(StatusLabel(lead.Status)),
+                CsvEscape(lead.CreatedAt.ToString("yyyy-MM-dd HH:mm")),
+                CsvEscape(lead.LastContactedAt?.ToString("yyyy-MM-dd HH:mm"))));
+        }
+
+        var bytes = Encoding.UTF8.GetPreamble()
+            .Concat(Encoding.UTF8.GetBytes(sb.ToString()))
+            .ToArray();
+
+        var fileName = $"leadscout-leads-{DateTime.UtcNow:yyyyMMdd}.csv";
+
+        _logger.LogInformation(
+            "Export CSV: {Count} leads exportadas por utilizador {UserId}", leads.Count, CurrentUserId);
+
+        return File(bytes, "text/csv", fileName);
+    }
+
+    // Escapa um valor para uma célula CSV 
+    private static string CsvEscape(string? value)
+    {
+        var safe = (value ?? "").Replace("\"", "\"\"");
+        return $"\"{safe}\"";
+    }
+
+    private static string StatusLabel(LeadStatus status) => status switch
+    {
+        LeadStatus.Novo => "Novo",
+        LeadStatus.MensagemEnviada => "Mensagem Enviada",
+        LeadStatus.EmNegociacao => "Em Negociação",
+        LeadStatus.ClienteFechado => "Cliente Fechado",
+        LeadStatus.Rejeitado => "Rejeitado",
+        _ => status.ToString()
+    };
 }
