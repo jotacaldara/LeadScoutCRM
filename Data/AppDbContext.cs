@@ -11,6 +11,9 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
     public DbSet<Lead> Leads { get; set; }
     public DbSet<Note> Notes { get; set; }
 
+    public DbSet<WebhookSubscription> WebhookSubscriptions { get; set; }
+    public DbSet<WebhookDeliveryLog> WebhookDeliveryLogs { get; set; }
+
     protected override void OnModelCreating(ModelBuilder modelBuilder)
     {
         base.OnModelCreating(modelBuilder); 
@@ -24,7 +27,23 @@ public class AppDbContext : IdentityDbContext<ApplicationUser>
         modelBuilder.Entity<ApplicationUser>()
     .HasIndex(u => u.ApiKeyHash)
     .IsUnique()
-    .HasFilter("[ApiKeyHash] IS NOT NULL"); 
+    .HasFilter("[ApiKeyHash] IS NOT NULL");
+
+        modelBuilder.Entity<WebhookSubscription>()
+    .Property(w => w.EventType)
+    .HasConversion<string>();
+
+        modelBuilder.Entity<WebhookSubscription>()
+            .HasOne(w => w.User)
+            .WithMany()
+            .HasForeignKey(w => w.UserId)
+            .OnDelete(DeleteBehavior.Cascade);
+
+        modelBuilder.Entity<WebhookDeliveryLog>()
+            .HasOne(l => l.WebhookSubscription)
+            .WithMany(w => w.DeliveryLogs)
+            .HasForeignKey(l => l.WebhookSubscriptionId)
+            .OnDelete(DeleteBehavior.Cascade);
 
         modelBuilder.Entity<Note>()
             .HasOne(n => n.Lead)

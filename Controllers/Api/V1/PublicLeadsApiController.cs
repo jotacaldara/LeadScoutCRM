@@ -7,6 +7,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using System.Security.Claims;
+using LeadScoutCRM.Services.Webhooks;
 
 namespace LeadScoutCRM.Controllers.Api.V1;
 
@@ -25,6 +26,19 @@ public class PublicLeadsApiController : ControllerBase
     private readonly AppDbContext _db;
     private readonly SubscriptionService _subscriptionService;
     private readonly ILogger<PublicLeadsApiController> _logger;
+    private readonly WebhookDispatchQueue _webhookQueue;
+
+    public PublicLeadsApiController(
+        AppDbContext db,
+        SubscriptionService subscriptionService,
+        ILogger<PublicLeadsApiController> logger,
+        WebhookDispatchQueue webhookQueue)
+    {
+        _db = db;
+        _subscriptionService = subscriptionService;
+        _logger = logger;
+        _webhookQueue = webhookQueue;
+    }
 
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
@@ -121,6 +135,9 @@ public class PublicLeadsApiController : ControllerBase
         _logger.LogInformation("Lead criada via API pública: {Name} (utilizador {UserId})",
             lead.BusinessName, CurrentUserId);
 
+        await _webhookQueue.EnqueueAsync(new WebhookJob(
+    CurrentUserId, nameof(WebhookEventType.LeadCreated), LeadPublicDto.FromEntity(lead)));
+
         return CreatedAtAction(nameof(GetLead), new { id = lead.Id }, LeadPublicDto.FromEntity(lead));
     }
 
@@ -139,6 +156,10 @@ public class PublicLeadsApiController : ControllerBase
             lead.LastContactedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        await _webhookQueue.EnqueueAsync(new WebhookJob(
+    CurrentUserId, nameof(WebhookEventType.LeadStatusChanged), LeadPublicDto.FromEntity(lead)));
+
         return Ok(LeadPublicDto.FromEntity(lead));
     }
 

@@ -8,6 +8,7 @@ using Microsoft.AspNetCore.Authorization;
 using Microsoft.AspNetCore.Identity;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.OpenApi;
+using LeadScoutCRM.Services.Webhooks;
 using Stripe;
 
 var builder = WebApplication.CreateBuilder(args);
@@ -76,6 +77,15 @@ builder.Services.AddAuthorization(options =>
     options.AddPolicy("ApiAccess", policy =>
         policy.RequireClaim("has_api_access", "true"));
 });
+
+// ── Webhooks de saída ──
+builder.Services.AddSingleton<WebhookDispatchQueue>();
+builder.Services.AddScoped<WebhookDeliveryService>();
+builder.Services.AddHttpClient("webhooks", client =>
+{
+    client.Timeout = TimeSpan.FromSeconds(10);
+});
+builder.Services.AddHostedService<WebhookDispatcherBackgroundService>();
 
 // ── Serviços de negócio ──
 builder.Services.Configure<GooglePlacesOptions>(

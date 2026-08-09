@@ -6,6 +6,7 @@ using Microsoft.AspNetCore.Mvc;
 using Microsoft.EntityFrameworkCore;
 using Microsoft.AspNetCore.Authorization;
 using System.Security.Claims;
+using LeadScoutCRM.Services.Webhooks;
 
 namespace LeadScoutCRM.Controllers.Api;
 
@@ -18,8 +19,23 @@ public class LeadsApiController : ControllerBase
     private readonly AppDbContext _db;
     private readonly ILogger<LeadsApiController> _logger;
     private readonly IAiService _ai;
+    private readonly WebhookDispatchQueue _webhookQueue;
 
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
+
+    public LeadsApiController(
+        AppDbContext db,
+        ILogger<LeadsApiController> logger,
+        IAiService ai,
+        Services.SubscriptionService subscriptionService,
+        WebhookDispatchQueue webhookQueue)
+    {
+        _db = db;
+        _logger = logger;
+        _ai = ai;
+        _subscriptionService = subscriptionService;
+        _webhookQueue = webhookQueue;
+    }
 
     public LeadsApiController(
         AppDbContext db,
@@ -76,6 +92,9 @@ public class LeadsApiController : ControllerBase
         await _db.SaveChangesAsync();
 
         _logger.LogInformation("Lead guardada: {BusinessName} para utilizador {UserId}", lead.BusinessName, userId);
+
+        await _webhookQueue.EnqueueAsync(new WebhookJob(
+    userId, nameof(WebhookEventType.LeadCreated), LeadPublicDto.FromEntity(lead)));
 
         return CreatedAtAction(nameof(GetLead), new { id = lead.Id }, new
         {
@@ -141,6 +160,9 @@ public class LeadsApiController : ControllerBase
             lead.LastContactedAt = DateTime.UtcNow;
 
         await _db.SaveChangesAsync();
+
+        await _webhookQueue.EnqueueAsync(new WebhookJob(
+    CurrentUserId, nameof(WebhookEventType.LeadStatusChanged), LeadPublicDto.FromEntity(lead)));
 
         return Ok(new { message = "Status actualizado.", newStatus = newStatus.ToString() });
     }
