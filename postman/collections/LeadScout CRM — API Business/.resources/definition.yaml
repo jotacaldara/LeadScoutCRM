@@ -1,0 +1,28 @@
+$kind: collection
+description: |-
+  Coleção de exemplo para a API pública v1 do LeadScout CRM, disponível para utilizadores do plano Business.
+
+  ### Como usar
+  1. Vai a Variables (na coleção) e define `baseUrl` (ex: `https://localhost:7169`) e `apiKey` (a chave gerada em Definições > Acesso API).
+  2. Corre primeiro "Criar lead" — o `leadId` é preenchido automaticamente para os pedidos seguintes.
+  3. A autenticação está configurada ao nível da coleção (cabeçalho `X-Api-Key`) — todos os pedidos herdam-na automaticamente.
+
+  ### Códigos de resposta
+  - `401 Unauthorized` — chave em falta ou inválida
+  - `403 Forbidden` — chave válida, mas o plano não inclui acesso API (não é Business)
+  - `402 Payment Required` — limite de leads do plano atingido
+
+  ### Nota sobre Webhooks
+  Os webhooks de saída não estão nesta coleção porque funcionam ao contrário de um pedido normal: é o LeadScout que contacta o teu sistema, não o teu sistema que contacta o LeadScout. Para testar webhooks, regista um URL de https://webhook.site em Definições > Webhooks.
+variables:
+  baseUrl: https://localhost:7169
+  apiKey: cola-aqui-a-tua-chave-lsk_...
+  leadId: "1"
+auth:
+  - id: b610ea09-1cd3-420c-8ea5-fc39cc83caf6
+    type: apikey
+    name: apikey auth
+    credentials:
+      key: X-Api-Key
+      value: "{{apiKey}}"
+      in: header

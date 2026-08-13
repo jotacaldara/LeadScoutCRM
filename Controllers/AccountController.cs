@@ -16,6 +16,7 @@ public class AccountController : Controller
     private readonly UserManager<ApplicationUser> _userManager;
     private readonly SignInManager<ApplicationUser> _signInManager;
     private readonly SubscriptionService _subscriptionService;
+    private readonly IEmailService _emailService;
     private readonly AppDbContext _db;
     private readonly WebhookDeliveryService _webhookDelivery;
     private readonly ILogger<AccountController> _logger;
@@ -24,6 +25,7 @@ public class AccountController : Controller
         UserManager<ApplicationUser> userManager,
         SignInManager<ApplicationUser> signInManager,
         SubscriptionService subscriptionService,
+         IEmailService emailService,
         AppDbContext db,
         WebhookDeliveryService webhookDelivery,
         ILogger<AccountController> logger)
@@ -31,20 +33,9 @@ public class AccountController : Controller
         _userManager = userManager;
         _signInManager = signInManager;
         _subscriptionService = subscriptionService;
+        _emailService = emailService;
         _db = db;
         _webhookDelivery = webhookDelivery;
-        _logger = logger;
-    }
-
-    public AccountController(
-        UserManager<ApplicationUser> userManager,
-        SignInManager<ApplicationUser> signInManager,
-        SubscriptionService subscriptionService,
-        ILogger<AccountController> logger)
-    {
-        _userManager = userManager;
-        _signInManager = signInManager;
-        _subscriptionService = subscriptionService;
         _logger = logger;
     }
 
@@ -92,6 +83,15 @@ public class AccountController : Controller
 
         // Atribui role "User" por omissão
         await _userManager.AddToRoleAsync(user, "User");
+
+        try
+        {
+            await _emailService.SendWelcomeEmailAsync(user.Email!, user.DisplayName);
+        }
+        catch (Exception ex)
+        {
+            _logger.LogWarning(ex, "Não foi possível enviar o email de boas-vindas para {Email}", user.Email);
+        }
 
         // Faz login automático após registo
         await _signInManager.SignInAsync(user, isPersistent: false);

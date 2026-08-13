@@ -37,18 +37,6 @@ public class LeadsApiController : ControllerBase
         _webhookQueue = webhookQueue;
     }
 
-    public LeadsApiController(
-        AppDbContext db,
-        ILogger<LeadsApiController> logger,
-        IAiService ai,
-        Services.SubscriptionService subscriptionService)
-    {
-        _db = db;
-        _logger = logger;
-        _ai = ai;
-        _subscriptionService = subscriptionService;
-    }
-
     // Guarda uma nova lead no CRM
     [HttpPost]
     public async Task<IActionResult> SaveLead([FromBody] SaveLeadRequest request)

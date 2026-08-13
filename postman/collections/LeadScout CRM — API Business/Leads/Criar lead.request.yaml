@@ -1,0 +1,32 @@
+$kind: http-request
+description: Cria uma nova lead. Apenas `businessName` é obrigatório. Devolve 402 se o limite de leads do plano já tiver sido atingido, ou 409 se já existir uma lead com o mesmo `placeId`.
+url: "{{baseUrl}}/api/v1/leads"
+method: POST
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "businessName": "Clínica Exemplo, Lda.",
+      "phoneNumber": "912 345 678",
+      "website": "https://clinicaexemplo.pt",
+      "address": "Rua Exemplo 123, Lisboa",
+      "niche": "dentista",
+      "city": "Lisboa",
+      "placeId": null
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Lead criada com sucesso (201)', function () {
+          pm.response.to.have.status(201);
+      });
+
+      const json = pm.response.json();
+      if (json && json.id) {
+          pm.collectionVariables.set('leadId', json.id);
+          console.log('leadId atualizado para: ' + json.id);
+      }
+    language: text/javascript
+order: 3000

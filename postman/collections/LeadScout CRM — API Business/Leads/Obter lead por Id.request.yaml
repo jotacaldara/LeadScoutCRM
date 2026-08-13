@@ -1,0 +1,12 @@
+$kind: http-request
+description: Obtém os dados de uma lead específica, identificada por `leadId`. Devolve 404 se a lead não existir ou não pertencer ao dono da chave.
+url: "{{baseUrl}}/api/v1/leads/{{leadId}}"
+method: GET
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status é 200', function () {
+          pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 2000

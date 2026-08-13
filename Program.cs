@@ -92,6 +92,7 @@ builder.Services.Configure<GooglePlacesOptions>(
     builder.Configuration.GetSection(GooglePlacesOptions.SectionName));
 builder.Services.AddHttpClient<IGooglePlacesService, GooglePlacesService>();
 builder.Services.AddScoped<LeadScoutCRM.Services.SubscriptionService>();
+builder.Services.AddHostedService<LeadScoutCRM.Services.AccountLifecycleEmailService>();
 
 builder.Services.AddHttpClient<IAiService, GeminiService>();
 builder.Services.AddTransient<IEmailService, EmailService>();

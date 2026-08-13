@@ -1,0 +1,14 @@
+# Use this workspace to collaborate
+workspace:
+  id: ""
+
+localResources:
+  specs:
+    - ../obj/Release/net8.0/EndpointInfo/LeadScoutCRM.json
+    - ../obj/Debug/net8.0/EndpointInfo/LeadScoutCRM.json
+
+# Each entry here maps a local resource to one or more corresponding objects in Postman Cloud
+
+cloudResources:
+  collections:
+    ../postman/collections/LeadScout CRM — API Business: c7c901c2-53f1-40d1-959e-b02a3c74f05e

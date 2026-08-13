@@ -1,0 +1,20 @@
+$kind: http-request
+description: "Atualiza o status de uma lead. Valores aceites: Novo, MensagemEnviada, EmNegociacao, ClienteFechado, Rejeitado. Dispara um evento de webhook `lead.status_changed` para quem tiver essa subscrição ativa."
+url: "{{baseUrl}}/api/v1/leads/{{leadId}}/status"
+method: PATCH
+headers:
+  Content-Type: application/json
+body:
+  type: json
+  content: |-
+    {
+      "status": "EmNegociacao"
+    }
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status atualizado (200)', function () {
+          pm.response.to.have.status(200);
+      });
+    language: text/javascript
+order: 4000

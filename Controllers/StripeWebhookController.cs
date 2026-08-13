@@ -11,15 +11,18 @@ namespace LeadScoutCRM.Controllers;
 public class StripeWebhookController : ControllerBase
 {
     private readonly Services.SubscriptionService _subscriptionService;
+    private readonly IEmailService _emailService;
     private readonly IConfiguration _config;
     private readonly ILogger<StripeWebhookController> _logger;
 
     public StripeWebhookController(
         Services.SubscriptionService subscriptionService,
+        IEmailService emailService,
         IConfiguration config,
         ILogger<StripeWebhookController> logger)
     {
         _subscriptionService = subscriptionService;
+        _emailService = emailService;
         _config = config;
         _logger = logger;
     }
@@ -50,7 +53,6 @@ public class StripeWebhookController : ControllerBase
         _logger.LogInformation("Stripe webhook recebido: {EventType}", stripeEvent.Type);
 
         // ── MÉTODO PRINCIPAL: checkout.session.completed ──────────────────────────
-        // Este evento tem o metadata com userId e plan — é o mais fiável para activar o plano
         if (stripeEvent.Type == Events.CheckoutSessionCompleted)
         {
             var session = (Session)stripeEvent.Data.Object;
@@ -85,7 +87,6 @@ public class StripeWebhookController : ControllerBase
         }
 
         // ── FALLBACK: customer.subscription.created/updated ──────────────────────
-        // Trata subscrições criadas por outros meios (portal, API, etc.)
         else if (stripeEvent.Type == Events.CustomerSubscriptionCreated ||
                  stripeEvent.Type == Events.CustomerSubscriptionUpdated)
         {
@@ -105,6 +106,14 @@ public class StripeWebhookController : ControllerBase
                     subscription.Id,
                     plan
                 );
+
+                // Cancelou mas mantém acesso até final do período pago:
+                // guarda a data para o lembrete automático o avisar antes de expirar.
+                if (subscription.CancelAtPeriodEnd)
+                {
+                    await _subscriptionService.ScheduleCancellationAsync(
+                        subscription.CustomerId, subscription.CurrentPeriodEnd);
+                }
             }
         }
 
@@ -124,7 +133,14 @@ public class StripeWebhookController : ControllerBase
         {
             var invoice = (Invoice)stripeEvent.Data.Object;
             _logger.LogWarning("Pagamento falhado para customer {CustomerId}", invoice.CustomerId);
-            // Podes aqui enviar email de aviso, marcar status PastDue, etc.
+
+            var user = await _subscriptionService.MarkPastDueAsync(invoice.CustomerId);
+
+            if (user != null && !string.IsNullOrEmpty(user.Email))
+            {
+                await _emailService.SendPaymentFailedEmailAsync(
+                    user.Email, user.DisplayName, PlanConfig.Plans[user.Plan].Name);
+            }
         }
 
         return Ok();

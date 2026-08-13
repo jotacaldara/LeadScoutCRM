@@ -1,0 +1,29 @@
+$kind: http-request
+description: Lista as leads do utilizador dono da chave API, com paginação. Os parâmetros `status` e `niche` são opcionais (ativa-os para filtrar).
+url: "{{baseUrl}}/api/v1/leads?page=1&pageSize=25"
+method: GET
+queryParams:
+  - key: page
+    value: "1"
+  - key: pageSize
+    value: "25"
+  - key: status
+    value: Novo
+    disabled: true
+  - key: niche
+    value: dentista
+    disabled: true
+scripts:
+  - type: afterResponse
+    code: |-
+      pm.test('Status é 200', function () {
+          pm.response.to.have.status(200);
+      });
+
+      pm.test('Resposta tem paginação e dados', function () {
+          const json = pm.response.json();
+          pm.expect(json).to.have.property('data');
+          pm.expect(json).to.have.property('total');
+      });
+    language: text/javascript
+order: 1000

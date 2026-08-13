@@ -144,6 +144,7 @@ public class SubscriptionService
         user.StripeSubscriptionId = stripeSubscriptionId;
         user.SubscriptionStatus = SubscriptionStatus.Active;
         user.SubscriptionStartedAt = DateTime.UtcNow;
+        user.LastReminderEmailSentAt = null;
         user.SubscriptionEndsAt = null;
 
         // Garante que o StripeCustomerId fica guardado
@@ -172,6 +173,7 @@ public class SubscriptionService
         user.SubscriptionStatus = SubscriptionStatus.Active;
         user.SubscriptionStartedAt = DateTime.UtcNow;
         user.SubscriptionEndsAt = null;
+        user.LastReminderEmailSentAt = null;
 
         await _userManager.UpdateAsync(user);
         _logger.LogInformation("Plano {Plan} activado para {Email}", plan, user.Email);
@@ -191,5 +193,31 @@ public class SubscriptionService
 
         await _userManager.UpdateAsync(user);
         _logger.LogInformation("Plano cancelado para {Email}", user.Email);
+    }
+
+    public async Task<ApplicationUser?> MarkPastDueAsync(string stripeCustomerId)
+    {
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.StripeCustomerId == stripeCustomerId);
+
+        if (user == null) return null;
+
+        user.SubscriptionStatus = SubscriptionStatus.PastDue;
+        await _userManager.UpdateAsync(user);
+        return user;
+    }
+
+    // Guarda a data em que o acesso termina, quando o utilizador cancela mas
+    // mantém acesso até final do período já pago (Stripe: CancelAtPeriodEnd)
+    public async Task ScheduleCancellationAsync(string stripeCustomerId, DateTime endsAt)
+    {
+        var user = await _userManager.Users
+            .FirstOrDefaultAsync(u => u.StripeCustomerId == stripeCustomerId);
+
+        if (user == null) return;
+
+        user.SubscriptionEndsAt = endsAt;
+        await _userManager.UpdateAsync(user);
+        _logger.LogInformation("Subscrição de {Email} agendada para terminar a {EndsAt}", user.Email, endsAt);
     }
 }

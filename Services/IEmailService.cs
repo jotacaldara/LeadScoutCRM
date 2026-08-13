@@ -13,4 +13,6 @@ public interface IEmailService
         int leadCount, int leadLimit);
 
     Task<bool> SendWelcomeEmailAsync(string toEmail, string toName);
+
+    Task<bool> SendPaymentFailedEmailAsync(string toEmail, string toName, string planName);
 }

@@ -19,6 +19,7 @@ public class ApplicationUser : IdentityUser
     public string? StripeSubscriptionId { get; set; }
 
     // Datas
+    public DateTime? LastReminderEmailSentAt { get; set; }
     public DateTime? SubscriptionStartedAt { get; set; }
     public DateTime? SubscriptionEndsAt { get; set; }   // null = activa indefinidamente
 

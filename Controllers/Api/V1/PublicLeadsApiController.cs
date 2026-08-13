@@ -42,15 +42,7 @@ public class PublicLeadsApiController : ControllerBase
 
     private string CurrentUserId => User.FindFirstValue(ClaimTypes.NameIdentifier)!;
 
-    public PublicLeadsApiController(
-        AppDbContext db,
-        SubscriptionService subscriptionService,
-        ILogger<PublicLeadsApiController> logger)
-    {
-        _db = db;
-        _subscriptionService = subscriptionService;
-        _logger = logger;
-    }
+
 
     //Lista as leads do utilizador, com paginação e filtros opcionais
     [HttpGet]

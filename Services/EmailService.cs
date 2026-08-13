@@ -8,6 +8,7 @@ public class EmailService : IEmailService
     private readonly IConfiguration _config;
     private readonly ILogger<EmailService> _logger;
 
+
     public EmailService(IConfiguration config, ILogger<EmailService> logger)
     {
         _config = config;
@@ -190,5 +191,44 @@ public class EmailService : IEmailService
 
         return await SendEmailAsync(toEmail, toName,
             "🚀 Bem-vindo ao LeadScout CRM!", html);
+    }
+
+    public async Task<bool> SendPaymentFailedEmailAsync(string toEmail, string toName, string planName)
+    {
+        var html = $"""
+        <!DOCTYPE html>
+        <html>
+        <body style="font-family:'Segoe UI',sans-serif;background:#f1f5f9;margin:0;padding:2rem;">
+          <div style="max-width:520px;margin:0 auto;background:#fff;border-radius:16px;overflow:hidden;box-shadow:0 4px 20px rgba(0,0,0,.08);">
+            <div style="background:#b91c1c;padding:2rem;text-align:center;">
+              <h1 style="color:#fff;margin:0;font-size:1.4rem;">⚠️ LeadScout CRM</h1>
+            </div>
+            <div style="padding:2rem;">
+              <h2 style="color:#1e293b;margin-top:0;">Olá, {toName}</h2>
+              <p style="color:#475569;line-height:1.6;">
+                Não conseguimos processar o pagamento da tua subscrição <strong>{planName}</strong>.
+                Isto acontece normalmente por um cartão expirado, saldo insuficiente ou o banco
+                ter bloqueado a transacção.
+              </p>
+              <p style="color:#475569;line-height:1.6;">
+                Actualiza o teu método de pagamento para não perderes o acesso às funcionalidades premium.
+              </p>
+              <div style="text-align:center;margin:2rem 0;">
+                <a href="https://leadscoutcrm.com/Account/Settings"
+                   style="background:#b91c1c;color:#fff;padding:.85rem 2.5rem;border-radius:10px;text-decoration:none;font-weight:600;font-size:1rem;">
+                  Actualizar Pagamento
+                </a>
+              </div>
+              <p style="color:#94a3b8;font-size:.8rem;text-align:center;margin-top:2rem;">
+                LeadScout CRM · <a href="https://leadscoutcrm.com/Privacy" style="color:#6366f1;">Privacidade</a>
+              </p>
+            </div>
+          </div>
+        </body>
+        </html>
+        """;
+
+        return await SendEmailAsync(toEmail, toName,
+            "⚠️ Falha no pagamento da tua subscrição — LeadScout CRM", html);
     }
 }
